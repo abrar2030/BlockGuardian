@@ -1,12 +1,11 @@
 # BlockGuardian
 
 ![CI/CD Status](https://img.shields.io/github/actions/workflow/status/quantsingularity/BlockGuardian/cicd.yml?branch=main&label=CI/CD&logo=github)
-[![Test Coverage](https://img.shields.io/badge/coverage-79%25-brightgreen)](https://github.com/quantsingularity/BlockGuardian/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Blockchain Security & Monitoring Platform
+## Portfolio and Asset Management Platform
 
-BlockGuardian is a comprehensive blockchain security and monitoring platform that helps organizations protect their blockchain assets, detect vulnerabilities, and ensure compliance with regulatory requirements.
+BlockGuardian is a full-stack financial platform for managing investment portfolios: tracking assets, recording buy and sell transactions, and reporting performance, allocation, and risk. The backend is a Flask REST API with JWT authentication, encryption, rate limiting, and audit logging built in. It ships with a Next.js web dashboard and a React Native mobile app.
 
 <div align="center">
   <img src="docs/images/BlockGuardian_dashboard.bmp" alt="BlockGuardian Dashboard" width="80%">
@@ -19,7 +18,7 @@ BlockGuardian is a comprehensive blockchain security and monitoring platform tha
 - [Key Features](#key-features)
 - [Architecture](#architecture)
 - [Technology Stack](#technology-stack)
-- [Installation & Setup](#installation--setup)
+- [Installation and Setup](#installation-and-setup)
 - [Key Scripts](#key-scripts)
 - [Infrastructure](#infrastructure)
 - [Testing](#testing)
@@ -30,282 +29,373 @@ BlockGuardian is a comprehensive blockchain security and monitoring platform tha
 
 ## Overview
 
-BlockGuardian provides a robust set of tools for monitoring blockchain networks, analyzing smart contract vulnerabilities, detecting suspicious transactions, and ensuring compliance with regulatory requirements. The platform combines advanced security techniques with user-friendly interfaces to make blockchain security accessible to organizations of all sizes.
+BlockGuardian's core functionality is a portfolio and asset management API plus its web and mobile clients. A user registers, authenticates with JWT (with optional MFA), and manages one or more portfolios containing stocks, bonds, cryptocurrency, ETFs, mutual funds, commodities, forex, derivatives, real estate, and other alternative assets. Each portfolio tracks holdings and a transaction ledger, and exposes computed performance, allocation, and risk views.
+
+| Supported Asset Types | Supported Transaction Types |
+| --------------------- | --------------------------- |
+| Stock                 | Buy                         |
+| Bond                  | Sell                        |
+| Cryptocurrency        | Deposit                     |
+| ETF                   | Withdrawal                  |
+| Mutual Fund           | Dividend                    |
+| Commodity             | Interest                    |
+| Forex                 | Fee                         |
+| Derivative            | Transfer In / Out           |
+| Real Estate           | Split                       |
+| Alternative           | Merger                      |
+
+The codebase also includes a schema for tracking AI and ML model metadata (fraud detection flags, risk assessments, market predictions, anomaly detection, and training jobs), and separate modules for compliance reporting and metrics monitoring.
 
 ## Project Structure
 
-The project is organized into several main components:
-
 ```
 BlockGuardian/
-├── code/                   # Core backend logic, services, and shared utilities
+├── code/
+│   ├── backend/            # Flask REST API
+│   └── blockchain/         # Hardhat/Truffle project with Solidity contracts
 ├── docs/                   # Project documentation
-├── infrastructure/         # DevOps, deployment, and infra-related code
-├── mobile-frontend/        # Mobile application
-├── web-frontend/           # Web dashboard
-├── scripts/                # Automation, setup, and utility scripts
-├── LICENSE                 # License information
-└── README.md               # Project overview and instructions
+├── infrastructure/         # Docker, Kubernetes, Terraform, Ansible, disaster recovery
+├── mobile-frontend/        # React Native (Expo) application
+├── web-frontend/           # Next.js web dashboard
+├── scripts/                # Setup, build, lint, and deployment scripts
+├── .github/workflows/      # CI pipeline (cicd.yml)
+├── LICENSE
+└── README.md
 ```
 
 ## Key Features
 
-### Security Monitoring
+### Authentication and Identity
 
-- **Real-time Transaction Monitoring**: Track and analyze blockchain transactions as they occur
-- **Anomaly Detection**: Identify suspicious patterns and potential security threats
-- **Smart Contract Auditing**: Automated and manual auditing tools for smart contract code
-- **Vulnerability Scanning**: Detect common security vulnerabilities in blockchain applications
+Implemented in `code/backend/src/routes/auth.py`.
 
-### Compliance & Governance
+| Endpoint                  | Method | Description                                         |
+| ------------------------- | ------ | --------------------------------------------------- |
+| /api/auth/register        | POST   | Register a new user                                 |
+| /api/auth/login           | POST   | Log in and receive JWT access and refresh tokens    |
+| /api/auth/logout          | POST   | Log out and invalidate the session                  |
+| /api/auth/refresh         | POST   | Refresh an access token                             |
+| /api/auth/setup-mfa       | POST   | Begin multi-factor authentication setup             |
+| /api/auth/enable-mfa      | POST   | Enable multi-factor authentication                  |
+| /api/auth/disable-mfa     | POST   | Disable multi-factor authentication                 |
+| /api/auth/change-password | POST   | Change password with existing-password verification |
+| /api/auth/profile         | GET    | Retrieve the user profile                           |
+| /api/auth/profile         | PUT    | Update the user profile                             |
+| /api/auth/verify-token    | POST   | Verify a JWT token                                  |
 
-- **Regulatory Compliance**: Tools to ensure adherence to relevant regulations (GDPR, AML, KYC)
-- **Audit Trail**: Immutable record of all security-related activities
-- **Risk Assessment**: Evaluate and quantify security risks in blockchain implementations
-- **Governance Framework**: Establish and enforce security policies for blockchain operations
+### Portfolio and Transaction Management
 
-### Analytics & Reporting
+Implemented in `code/backend/src/routes/portfolio.py`.
 
-- **Security Dashboards**: Visualize security metrics and KPIs
-- **Incident Response**: Tools for managing and responding to security incidents
-- **Forensic Analysis**: Investigate security breaches and unauthorized activities
-- **Compliance Reporting**: Generate reports for regulatory compliance
+| Endpoint                            | Method | Description                  |
+| ----------------------------------- | ------ | ---------------------------- |
+| /api/portfolios/                    | GET    | List portfolios              |
+| /api/portfolios/                    | POST   | Create a portfolio           |
+| /api/portfolios/\<id\>              | GET    | Retrieve a portfolio         |
+| /api/portfolios/\<id\>              | PUT    | Update a portfolio           |
+| /api/portfolios/\<id\>              | DELETE | Delete a portfolio           |
+| /api/portfolios/\<id\>/holdings     | GET    | List holdings in a portfolio |
+| /api/portfolios/\<id\>/transactions | GET    | List transactions            |
+| /api/portfolios/\<id\>/transactions | POST   | Record a transaction         |
+| /api/portfolios/\<id\>/buy          | POST   | Buy an asset                 |
+| /api/portfolios/\<id\>/sell         | POST   | Sell an asset                |
+| /api/portfolios/\<id\>/performance  | GET    | View performance metrics     |
+| /api/portfolios/\<id\>/allocation   | GET    | View asset allocation        |
+| /api/portfolios/\<id\>/risk         | GET    | View risk level              |
+| /api/portfolios/assets              | GET    | List available assets        |
+| /api/portfolios/assets/search       | GET    | Search assets                |
 
-### Developer Tools
+### Security Infrastructure
 
-- **Secure Development Guidelines**: Best practices for blockchain development
-- **Code Analysis**: Static and dynamic analysis tools for smart contracts
-- **Testing Framework**: Comprehensive testing tools for blockchain applications
-- **Security Plugins**: Integrations with popular development environments
+Implemented in `code/backend/src/security/`.
+
+| Module         | File             | Responsibility                                 |
+| -------------- | ---------------- | ---------------------------------------------- |
+| Authentication | auth.py          | JWT based auth with role and permission checks |
+| Encryption     | encryption.py    | Field level encryption helpers                 |
+| Rate Limiting  | rate_limiting.py | Configurable rate limiting by scope            |
+| Audit Logging  | audit.py         | Structured logging of security relevant events |
+| Validation     | validation.py    | Centralized input validation                   |
+
+### AI and ML Data Model
+
+Implemented in `code/backend/src/models/ai_models.py`. This module defines the data model only. Model training and inference are not part of this repository, so populating these tables with live predictions requires connecting an external model or building one against this schema.
+
+| Table            | Purpose                                               |
+| ---------------- | ----------------------------------------------------- |
+| AIModel          | Registers AI models, status, and deployment lifecycle |
+| ModelPrediction  | Stores individual model predictions and feedback      |
+| FraudDetection   | Records flagged transactions and actions taken        |
+| RiskAssessment   | Stores computed risk assessments and expiry           |
+| MarketPrediction | Stores market forecasts and accuracy tracking         |
+| AnomalyDetection | Stores detected anomalies, alerts, and resolution     |
+| ModelTrainingJob | Tracks training job lifecycle and metrics             |
+
+### Compliance and Monitoring
+
+Implemented in `code/backend/src/compliance/` and `code/backend/src/monitoring/`. Both modules have dedicated test files. Neither is currently registered as a Flask blueprint in `main.py`, so wiring them into `register_blueprints()` is the remaining step to expose them through the API.
+
+| Module               | File          | Status                                     |
+| -------------------- | ------------- | ------------------------------------------ |
+| Compliance records   | compliance.py | Implemented, not registered as a blueprint |
+| Compliance reporting | reporting.py  | Implemented, not registered as a blueprint |
+| Metrics collection   | metrics.py    | Implemented, not registered as a blueprint |
+
+### Blockchain Module
+
+A Hardhat and Truffle project in `code/blockchain/` defines the following Solidity contracts. They are not currently called from the Flask backend.
+
+| Contract             | Purpose                        |
+| -------------------- | ------------------------------ |
+| PortfolioManager.sol | Portfolio management logic     |
+| TradingPlatform.sol  | Trading logic                  |
+| TokenizedAsset.sol   | Tokenized asset representation |
+| DeFiIntegration.sol  | DeFi protocol integration      |
+| TestToken.sol        | Test token for development     |
+
+### Web and Mobile Clients
+
+| Screen                         | Web               | Mobile            |
+| ------------------------------ | ----------------- | ----------------- |
+| Login                          | Yes               | Yes               |
+| Dashboard                      | Yes               | Yes               |
+| Portfolio                      | Yes               | Yes               |
+| AI Recommendations             | Yes               | Yes               |
+| Market Analysis                | Yes               | Yes               |
+| Admin                          | Yes               | Yes               |
+| Blockchain Explorer            | Yes (sample data) | Yes (sample data) |
+| Security Check                 | No                | Yes               |
+| About, Contact, Terms, Privacy | Yes               | No                |
+
+The blockchain explorer view in both clients currently renders sample data (transaction counts, volumes, and a list of contract addresses) rather than querying a live source.
 
 ## Architecture
 
-BlockGuardian follows a modular architecture with the following components:
-
 ```
 BlockGuardian/
-├── Core Services
-│   ├── Monitoring Engine
-│   ├── Analysis Engine
-│   ├── Alert System
-│   └── Reporting Service
+├── Backend (Flask, single service)
+│   ├── Auth blueprint       /api/auth/*
+│   ├── Portfolio blueprint  /api/portfolios/*
+│   ├── Health and info      /health, /api/info
+│   └── Not yet registered:  user, compliance, monitoring routes
 ├── Frontend Applications
-│   ├── Web Dashboard
-│   └── Mobile App
-├── Blockchain Connectors
-│   ├── Ethereum Connector
-│   ├── Bitcoin Connector
-│   ├── Solana Connector
-│   └── Other Chain Connectors
+│   ├── Web Dashboard (Next.js)
+│   └── Mobile App (React Native / Expo)
+├── Data Layer
+│   ├── PostgreSQL (primary datastore)
+│   └── Redis (caching, rate limiting)
 └── Infrastructure
-    ├── Database Cluster
-    ├── Message Queue
-    ├── Cache Layer
-    └── API Gateway
+    ├── Docker Compose (local and production)
+    ├── Kubernetes manifests
+    ├── Terraform modules
+    └── Ansible playbooks
 ```
 
 ## Technology Stack
 
 ### Backend
 
-- **Languages**: Python, Rust, Go
-- **Frameworks**: FastAPI, Actix, Gin
-- **Database**: PostgreSQL, MongoDB, Redis
-- **Message Queue**: Kafka, RabbitMQ
-- **Blockchain**: Web3.py, ethers.js, Solidity
+| Aspect         | Technology                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Language       | Python 3.11                                                                                                               |
+| Framework      | Flask                                                                                                                     |
+| Extensions     | Flask-CORS, Flask-JWT-Extended, Flask-SQLAlchemy, Flask-Limiter, Flask-Caching, Flask-SocketIO, Flask-Migrate, Flask-Mail |
+| Database       | PostgreSQL (via SQLAlchemy), Redis                                                                                        |
+| Error Tracking | Sentry (Flask integration)                                                                                                |
 
 ### Web Frontend
 
-- **Framework**: React with TypeScript
-- **State Management**: Redux Toolkit
-- **Data Visualization**: D3.js, Recharts
-- **Styling**: Tailwind CSS, Styled Components
-- **Web3**: ethers.js, web3.js
+| Aspect             | Technology         |
+| ------------------ | ------------------ |
+| Framework          | Next.js with React |
+| Data Visualization | Recharts           |
+| Testing            | Jest, Playwright   |
 
 ### Mobile Frontend
 
-- **Framework**: React Native
-- **Navigation**: React Navigation
-- **State Management**: Redux Toolkit
-- **UI Components**: React Native Paper
+| Aspect    | Technology                  |
+| --------- | --------------------------- |
+| Framework | React Native (Expo, SDK 52) |
+| Testing   | Jest                        |
+
+### Blockchain
+
+| Aspect   | Technology       |
+| -------- | ---------------- |
+| Tooling  | Hardhat, Truffle |
+| Language | Solidity         |
 
 ### Infrastructure
 
-- **Containerization**: Docker
-- **Orchestration**: Kubernetes
-- **CI/CD**: GitHub Actions
-- **Monitoring**: Prometheus, Grafana
-- **Infrastructure as Code**: Terraform, Ansible
+| Aspect                 | Technology             |
+| ---------------------- | ---------------------- |
+| Containerization       | Docker, Docker Compose |
+| Orchestration          | Kubernetes             |
+| Infrastructure as Code | Terraform, Ansible     |
+| CI/CD                  | GitHub Actions         |
 
-## Installation & Setup
+## Installation and Setup
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Node.js (v16+)
-- Python (v3.9+)
-- Go (v1.18+)
-- Rust (latest stable)
+| Requirement               | Version       |
+| ------------------------- | ------------- |
+| Docker and Docker Compose | Latest stable |
+| Node.js                   | 18 or later   |
+| Python                    | 3.11          |
 
-### Setup Using Environment Script
-
-The easiest way to set up the development environment is to use the provided setup script:
+### Setup Using the Environment Script
 
 ```bash
-# Clone the repository
 git clone https://github.com/quantsingularity/BlockGuardian.git
 cd BlockGuardian
 
-# Run the setup script
-./setup_blockguardian_env.sh
+# Sets up backend, blockchain, web, and mobile dependencies
+./scripts/setup_blockguardian_env.sh
 
-# Start the application
-./run_blockguardian.sh
+# Starts the application
+./scripts/run_blockguardian.sh
 ```
 
-### Manual Setup for Individual Components
+### Manual Setup by Component
 
-1. **Backend (`backend/`):**
-   - Navigate to the `backend` directory: `cd backend`
-   - Create a virtual environment: `python -m venv venv`
-   - Activate the virtual environment: `source venv/bin/activate` (Linux/Mac) or `venv\Scripts\activate` (Windows)
-   - Install dependencies: `pip install -r requirements.txt`
-   - Set up environment variables: `cp .env.example .env` and edit as needed
-   - Run the development server: `uvicorn main:app --reload`
-
-2. **Mobile Frontend (`mobile-frontend/`):**
-   - Navigate to the `mobile-frontend` directory: `cd mobile-frontend`
-   - Install dependencies: `npm install` or `yarn install`
-   - Start the development server: `npm start` or `yarn start`
-   - Run on Android or iOS:
-     ```bash
-     yarn android # or npx react-native run-android
-     yarn ios   # or npx react-native run-ios
-     ```
-3. **Web Frontend (`web-frontend/`):**
-   - Navigate to the `web-frontend` directory: `cd web-frontend`
-   - Install dependencies: `npm install`
-   - Run in development mode: `npm run dev` (usually accessible at `http://localhost:3000`)
-   - Build for production: `npm run build`
-   - Start production server: `npm run start`
-
-### Running the Entire Project (using Docker Compose)
-
-A `docker-compose.yml` file is provided at the root to simplify running the core services (backend, web-frontend). Other services like blockchain nodes or data analysis environments might need separate management or integration into the Docker Compose setup if desired.
+Backend (`code/backend/`):
 
 ```bash
-# From the project root directory
+cd code/backend
+python -m venv venv
+source venv/bin/activate      # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env          # edit as needed
+python -m flask --app src.main run --debug
+```
+
+Web Frontend (`web-frontend/`):
+
+```bash
+cd web-frontend
+npm install
+npm run dev                   # http://localhost:3000
+```
+
+Mobile Frontend (`mobile-frontend/`):
+
+```bash
+cd mobile-frontend
+npm install
+npm start
+```
+
+### Running Backend Services with Docker Compose
+
+The backend, PostgreSQL, and Redis are defined in `code/docker-compose.yml`:
+
+```bash
+cd code
 docker-compose up --build
 ```
 
+The web and mobile frontends are not part of this compose file and are run separately as shown above.
+
 ## Key Scripts
 
-The repository includes several utility scripts to simplify common tasks:
+| Script                             | Purpose                                                       |
+| ---------------------------------- | ------------------------------------------------------------- |
+| scripts/setup_blockguardian_env.sh | Sets up dependencies for backend, blockchain, web, and mobile |
+| scripts/run_blockguardian.sh       | Starts the application components                             |
+| scripts/build_all.sh               | Builds all components                                         |
+| scripts/clean_all.sh               | Removes build artifacts and dependencies                      |
+| scripts/lint-all.sh                | Runs linting across all components                            |
+| scripts/health_check.sh            | Checks service health                                         |
+| scripts/log_aggregator.sh          | Aggregates logs from running services                         |
+| scripts/run_unified_tests.sh       | Runs the full test suite across components                    |
+| scripts/deploy_automation.sh       | Deployment automation                                         |
 
-- `setup_blockguardian_env.sh`: Sets up the development environment
-- `run_blockguardian.sh`: Starts the application
-- `lint-all.sh`: Runs linting on all code
-- `validate_code_quality.py`: Validates code quality and security
+## Infrastructure
+
+| Directory                               | Contents                                |
+| --------------------------------------- | --------------------------------------- |
+| infrastructure/docker/                  | Additional Docker configuration         |
+| infrastructure/kubernetes/base/         | Base Kubernetes manifests               |
+| infrastructure/kubernetes/environments/ | Per environment overlays                |
+| infrastructure/terraform/modules/       | Terraform modules                       |
+| infrastructure/terraform/environments/  | Per environment Terraform configuration |
+| infrastructure/terraform/scripts/       | Terraform helper scripts                |
+| infrastructure/ansible/inventory/       | Ansible inventory                       |
+| infrastructure/ansible/playbooks/       | Ansible playbooks                       |
+| infrastructure/ansible/roles/           | Ansible roles                           |
+| infrastructure/disaster-recovery/       | Disaster recovery configuration         |
 
 ## Testing
 
-The project maintains comprehensive test coverage across all components to ensure reliability and security.
+Backend tests live in `code/backend/tests/`. `test_compliance.py` and `test_security.py` exercise the compliance and security modules directly; they confirm the module logic works, independent of whether those routes are registered in the running API.
 
-### Test Coverage
+| Test File          | Lines |
+| ------------------ | ----- |
+| test_auth.py       | 560   |
+| test_compliance.py | 767   |
+| test_portfolio.py  | 592   |
+| test_security.py   | 685   |
 
-| Component             | Coverage | Status |
-| --------------------- | -------- | ------ |
-| Backend Services      | 82%      | ✅     |
-| Smart Contracts       | 90%      | ✅     |
-| Blockchain Connectors | 75%      | ✅     |
-| Web Frontend          | 72%      | ✅     |
-| Mobile Frontend       | 68%      | ✅     |
-| Overall               | 79%      | ✅     |
-
-### Unit Tests
-
-- Backend API endpoint tests
-- Smart contract function tests
-- Frontend component tests
-- Blockchain connector tests
-
-### Integration Tests
-
-- End-to-end workflow tests
-- Cross-service integration tests
-- API contract tests
-- Blockchain interaction tests
-
-### Security Tests
-
-- Smart contract vulnerability scans
-- Penetration testing
-- Dependency vulnerability scanning
-- Access control testing
+| Client | Test Type               | Location                       |
+| ------ | ----------------------- | ------------------------------ |
+| Web    | Unit (Jest)             | web-frontend/**tests**/        |
+| Web    | End to end (Playwright) | web-frontend/e2e/basic.spec.js |
+| Mobile | Unit (Jest)             | mobile-frontend/**tests**/     |
 
 To run tests:
 
 ```bash
-# Backend tests
-cd backend
+# Backend
+cd code/backend
 pytest
 
-# Smart contract tests
-cd blockchain-contracts
-npx hardhat test
-
-# Frontend tests
+# Web frontend
 cd web-frontend
+npm test
+
+# Mobile frontend
+cd mobile-frontend
 npm test
 ```
 
+Run `pytest --cov` in `code/backend` for a current coverage percentage.
+
 ## CI/CD Pipeline
 
-BlockGuardian uses GitHub Actions for continuous integration and deployment:
+`.github/workflows/cicd.yml` defines three jobs, triggered on push and pull request to `main` and `develop`, and on manual dispatch.
 
-| Stage                | Control Area                    | Institutional-Grade Detail                                                              |
-| :------------------- | :------------------------------ | :-------------------------------------------------------------------------------------- |
-| **Formatting Check** | Change Triggers                 | Enforced on all `push` and `pull_request` events to `main` and `develop`                |
-|                      | Manual Oversight                | On-demand execution via controlled `workflow_dispatch`                                  |
-|                      | Source Integrity                | Full repository checkout with complete Git history for auditability                     |
-|                      | Python Runtime Standardization  | Python 3.10 with deterministic dependency caching                                       |
-|                      | Backend Code Hygiene            | `autoflake` to detect unused imports/variables using non-mutating diff-based validation |
-|                      | Backend Style Compliance        | `black --check` to enforce institutional formatting standards                           |
-|                      | Non-Intrusive Validation        | Temporary workspace comparison to prevent unauthorized source modification              |
-|                      | Node.js Runtime Control         | Node.js 18 with locked dependency installation via `npm ci`                             |
-|                      | Web Frontend Formatting Control | Prettier checks for web-facing assets                                                   |
-|                      | Mobile Frontend Formatting      | Prettier enforcement for mobile application codebases                                   |
-|                      | Documentation Governance        | Repository-wide Markdown formatting enforcement                                         |
-|                      | Infrastructure Configuration    | Prettier validation for YAML/YML infrastructure definitions                             |
-|                      | Compliance Gate                 | Any formatting deviation fails the pipeline and blocks merge                            |
+| Job            | What it does                                                                                                                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| code_quality   | Runs autoflake and black --check on Python code, then a global prettier --check (with the Solidity plugin) across JS, TS, JSON, HTML, CSS, Markdown, Solidity, and YAML files |
+| backend_tests  | Runs the backend pytest suite and uploads a coverage report artifact                                                                                                          |
+| frontend_build | Builds the web frontend and uploads the build artifact                                                                                                                        |
 
 ## Documentation
 
-For detailed documentation, please refer to the following resources:
-
-| Document                    | Path                 | Description                                                 |
-| :-------------------------- | :------------------- | :---------------------------------------------------------- |
-| **README**                  | `README.md`          | High-level overview, project scope, and quickstart          |
-| **API Reference**           | `API.md`             | Detailed documentation for all API endpoints                |
-| **CLI Reference**           | `CLI.md`             | Command-line interface usage, commands, and examples        |
-| **Installation Guide**      | `INSTALLATION.md`    | Step-by-step installation and environment setup             |
-| **User Guide**              | `USAGE.md`           | Comprehensive guide for end-users, workflows, and examples  |
-| **Contributing Guidelines** | `CONTRIBUTING.md`    | Contribution process, coding standards, and PR requirements |
-| **Architecture Overview**   | `ARCHITECTURE.md`    | System architecture, components, and design rationale       |
-| **Configuration Guide**     | `CONFIGURATION.md`   | Configuration options, environment variables, and tuning    |
-| **Feature Matrix**          | `FEATURE_MATRIX.md`  | Feature capabilities, coverage, and roadmap alignment       |
-| **Troubleshooting**         | `TROUBLESHOOTING.md` | Common issues, diagnostics, and remediation steps           |
+| Document                | Path                    | Description                                     |
+| ----------------------- | ----------------------- | ----------------------------------------------- |
+| README                  | README.md               | This file                                       |
+| API Reference           | docs/API.md             | API endpoint documentation                      |
+| CLI Reference           | docs/CLI.md             | Command line usage                              |
+| Installation Guide      | docs/INSTALLATION.md    | Environment setup                               |
+| User Guide              | docs/USAGE.md           | End user workflows                              |
+| Contributing Guidelines | docs/CONTRIBUTING.md    | Contribution process and standards              |
+| Architecture Overview   | docs/ARCHITECTURE.md    | System architecture and design                  |
+| Configuration Guide     | docs/CONFIGURATION.md   | Configuration options and environment variables |
+| Feature Matrix          | docs/FEATURE_MATRIX.md  | Feature coverage                                |
+| Troubleshooting         | docs/TROUBLESHOOTING.md | Common issues and fixes                         |
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+| No. | Action                                                           |
+| --- | ---------------------------------------------------------------- |
+| 1   | Fork the repository                                              |
+| 2   | Create a feature branch (`git checkout -b feature/your-feature`) |
+| 3   | Commit your changes (`git commit -m "Add your feature"`)         |
+| 4   | Push to the branch (`git push origin feature/your-feature`)      |
+| 5   | Open a pull request                                              |
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
