@@ -1,5 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const Input = ({
   label,
@@ -8,7 +14,10 @@ const Input = ({
   onChangeText,
   isSecure = false,
   icon,
+  rightIcon,
+  onRightIconPress,
   error,
+  hint,
   keyboardType = "default",
   autoCapitalize = "none",
   autoCorrect = false,
@@ -21,6 +30,7 @@ const Input = ({
   onFocus,
   returnKeyType,
   onSubmitEditing,
+  maxLength,
 }) => {
   return (
     <View style={[styles.wrapper, style]}>
@@ -57,9 +67,15 @@ const Input = ({
           onFocus={onFocus}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
+          maxLength={maxLength}
           style={[styles.input, multiline && styles.inputMultiline]}
           testID={testID}
         />
+        {rightIcon && (
+          <TouchableOpacity onPress={onRightIconPress} hitSlop={8}>
+            <Ionicons name={rightIcon} size={18} color="#64748b" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {error && (
@@ -68,6 +84,7 @@ const Input = ({
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
+      {!error && hint && <Text style={styles.hintText}>{hint}</Text>}
     </View>
   );
 };
@@ -101,6 +118,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   errorText: { color: "#ef4444", fontSize: 12 },
+  hintText: { color: "#64748b", fontSize: 12, marginTop: 6 },
 });
 
 export default Input;

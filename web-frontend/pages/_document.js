@@ -21,7 +21,7 @@ export default function Document() {
             __html: `
               (function() {
                 try {
-                  var stored = localStorage.getItem('darkMode');
+                  var stored = localStorage.getItem('bg_dark_mode');
                   var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   var dark = stored !== null ? stored === 'true' : prefersDark;
                   if (dark) document.documentElement.classList.add('dark');

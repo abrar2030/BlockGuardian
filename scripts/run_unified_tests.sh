@@ -40,7 +40,8 @@ command_exists() {
 log_message() {
   local message="$1"
   local level="${2:-INFO}"
-  local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+  local timestamp
+  timestamp=$(date +"%Y-%m-%d %H:%M:%S")
   echo -e "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
 }
 
@@ -50,7 +51,6 @@ run_component_tests() {
   local component_dir="$2"
   local test_command="$3"
   local test_output_log="${TEST_RESULTS_DIR}/${component}_test_output.log"
-  local junit_xml_file="${TEST_RESULTS_DIR}/${component}_test_results.xml"
 
   log_message "Running tests for ${component} in ${component_dir}..." "INFO"
 
@@ -98,6 +98,7 @@ run_all_tests() {
   local passed=0
   local failed=0
   local skipped=0
+  local status
 
   # Create test summary header
   echo "# BlockGuardian Test Summary" > "$SUMMARY_FILE"
@@ -111,22 +112,30 @@ run_all_tests() {
   # Define components and their test commands
   local components=(
     "Backend:${PROJECT_ROOT}/code/backend:source venv/bin/activate && python -m pytest tests/ --junitxml=${TEST_RESULTS_DIR}/backend_test_results.xml"
-    "Blockchain:${PROJECT_ROOT}/blockchain:npx hardhat test"
-    "Web-Frontend:${PROJECT_ROOT}/web-frontend:npm test -- --ci --reporters=default --reporters=jest-junit"
-    "Mobile-Frontend:${PROJECT_ROOT}/mobile-frontend:npm test -- --ci --reporters=default --reporters=jest-junit"
+    "Blockchain:${PROJECT_ROOT}/code/blockchain:npx hardhat test"
+    "Web-Frontend:${PROJECT_ROOT}/web-frontend:npx jest --ci"
+    "Mobile-Frontend:${PROJECT_ROOT}/mobile-frontend:npx jest --ci"
   )
 
   for component_info in "${components[@]}"; do
     IFS=':' read -r component_name component_dir test_command <<< "$component_info"
 
     echo -e "${BLUE}Running ${component_name} tests...${NC}"
-    run_component_tests "$component_name" "$component_dir" "$test_command"
-    local status=$?
+    # run_component_tests legitimately returns 1 (failed) or 2 (skipped) -
+    # as a bare statement under `set -e` that would silently kill this whole
+    # script on the very first component that doesn't pass, before the
+    # summary/statistics below are ever produced.
+    status=0
+    run_component_tests "$component_name" "$component_dir" "$test_command" || status=$?
 
+    # NOTE: `var=$((var + 1))` rather than `((var++))`. Under `set -e`, the
+    # post-increment form evaluates to the *pre*-increment value, so
+    # incrementing from 0 is arithmetic 0 (shell "false") and kills the
+    # whole script right there the first time any counter is bumped from 0.
     case $status in
-      0) ((passed++)) ;;
-      1) ((failed++)) ;;
-      2) ((skipped++)) ;;
+      0) passed=$((passed + 1)) ;;
+      1) failed=$((failed + 1)) ;;
+      2) skipped=$((skipped + 1)) ;;
     esac
   done
 

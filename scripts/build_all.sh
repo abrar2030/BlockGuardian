@@ -76,7 +76,7 @@ main() {
 
   # 2. Blockchain Build (Hardhat/Solidity)
   if command_exists npx; then
-    if ! build_component "Blockchain Contracts" "${PROJECT_ROOT}/blockchain" "npm install && npx hardhat compile"; then
+    if ! build_component "Blockchain Contracts" "${PROJECT_ROOT}/code/blockchain" "npm install && npx hardhat compile"; then
       failed_builds=$((failed_builds + 1))
     fi
   else
@@ -93,12 +93,15 @@ main() {
   fi
 
   # 4. Mobile Frontend Build (Expo/React Native)
-  if command_exists yarn; then
-    if ! build_component "Mobile Frontend" "${PROJECT_ROOT}/mobile-frontend" "yarn install && yarn run build"; then
+  # Uses npm (the project ships package-lock.json, not yarn.lock). Expo apps
+  # don't define a generic "build" script, so export a static web bundle
+  # directly via the Expo CLI instead of assuming `npm run build` exists.
+  if command_exists npm; then
+    if ! build_component "Mobile Frontend" "${PROJECT_ROOT}/mobile-frontend" "npm install && npx expo export --platform web --output-dir dist"; then
       failed_builds=$((failed_builds + 1))
     fi
   else
-    echo -e "${YELLOW}Warning: yarn not found. Skipping Mobile Frontend build.${NC}"
+    echo -e "${YELLOW}Warning: npm not found. Skipping Mobile Frontend build.${NC}"
   fi
 
   # -----------------------------------------------------------------------------

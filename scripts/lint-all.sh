@@ -4,7 +4,17 @@
 
 # --- Configuration and Setup ---
 set -euo pipefail # Exit on error, unset variable, and pipe failure
-ROOT_DIR=$(pwd)
+
+# Script directory and project root (robust to the caller's current working
+# directory - all other scripts in this directory use the same pattern).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+ROOT_DIR="$PROJECT_ROOT"
+
+# Dedicated virtual environment for lint tooling. Installing into a venv
+# (rather than the system Python) avoids PEP 668 "externally-managed-environment"
+# failures on modern Debian/Ubuntu systems, without requiring --break-system-packages.
+LINT_VENV="${PROJECT_ROOT}/.lint-venv"
 
 echo "----------------------------------------"
 echo "Starting linting and fixing process for BlockGuardian..."
@@ -15,11 +25,11 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-# Function to install a Python package
+# Function to install a Python package into the dedicated lint venv
 install_python_package() {
   local package_name="$1"
   echo "Installing/Updating Python package: $package_name..."
-  pip3 install --upgrade "$package_name" || {
+  "${LINT_VENV}/bin/pip" install --upgrade --quiet "$package_name" || {
     echo "Error: Failed to install Python package $package_name." >&2
     exit 1
   }
@@ -29,9 +39,16 @@ install_python_package() {
 install_npm_package() {
   local package_name="$1"
   echo "Installing/Updating global npm package: $package_name..."
-  # Use sudo for global install, but check if it's already installed to avoid unnecessary sudo
+  # Use sudo for global install, but check if it's already installed to avoid
+  # unnecessary sudo. Skip sudo entirely when already root or when sudo isn't
+  # available (common in containers/CI runners) - `npm install --global` works
+  # fine without it in both of those cases.
   if ! command_exists "$package_name"; then
-    sudo npm install --global "$package_name" || {
+    local npm_installer=(npm install --global "$package_name")
+    if [ "$(id -u)" -ne 0 ] && command_exists sudo; then
+      npm_installer=(sudo "${npm_installer[@]}")
+    fi
+    "${npm_installer[@]}" || {
       echo "Error: Failed to install global npm package $package_name." >&2
       exit 1
     }
@@ -40,6 +57,11 @@ install_npm_package() {
 
 # --- Check and Install Required Tools ---
 echo "Checking for required tools..."
+
+if [ ! -d "$LINT_VENV" ]; then
+  echo "Creating Python virtual environment for lint tools at $LINT_VENV..."
+  python3 -m venv "$LINT_VENV"
+fi
 
 # Python tools
 install_python_package "black"
@@ -71,6 +93,8 @@ else
 fi
 
 # --- Define Directories to Process ---
+# All paths are relative to $ROOT_DIR and resolved against it below - they are
+# NOT resolved against the caller's current working directory.
 PYTHON_DIRECTORIES=(
   "code/backend"
 )
@@ -78,12 +102,10 @@ PYTHON_DIRECTORIES=(
 JS_DIRECTORIES=(
   "web-frontend"
   "mobile-frontend"
-  "blockchain"
-  "code/frontend"
+  "code/blockchain"
 )
 
 SOLIDITY_DIRECTORIES=(
-  "blockchain/contracts"
   "code/blockchain/contracts"
 )
 
@@ -102,31 +124,41 @@ echo "----------------------------------------"
 echo "Running Python linting tools..."
 
 for dir in "${PYTHON_DIRECTORIES[@]}"; do
-  if [ -d "$dir" ]; then
+  full_dir="${ROOT_DIR}/${dir}"
+  if [ -d "$full_dir" ]; then
     echo "Processing Python directory: $dir"
     (
-      cd "$dir"
-      # Find and activate venv if it exists, otherwise skip activation
+      cd "$full_dir"
+
+      # Find and activate the component's own venv if it exists (so tools
+      # like isort can see the project's real dependencies); otherwise fall
+      # back to the dedicated lint venv set up above.
       VENV_PATH=$(find . -maxdepth 2 -type d -name "venv" | head -n 1)
       if [ -n "$VENV_PATH" ]; then
+        # shellcheck disable=SC1091
         source "$VENV_PATH/bin/activate"
+        PYTHON_BIN="python3"
+      else
+        PYTHON_BIN="${LINT_VENV}/bin/python3"
       fi
 
       # 1.1 Run Black (code formatter)
       echo "  - Running Black..."
-      python3 -m black . || echo "    Black encountered issues in $dir."
+      "$PYTHON_BIN" -m black . || echo "    Black encountered issues in $dir."
 
       # 1.2 Run isort (import sorter)
       echo "  - Running isort..."
-      python3 -m isort . || echo "    isort encountered issues in $dir."
+      "$PYTHON_BIN" -m isort . || echo "    isort encountered issues in $dir."
 
       # 1.3 Run flake8 (linter)
       echo "  - Running flake8..."
-      python3 -m flake8 . || echo "    Flake8 found issues in $dir."
+      "$PYTHON_BIN" -m flake8 . || echo "    Flake8 found issues in $dir."
 
       # 1.4 Run pylint (more comprehensive linter)
       echo "  - Running pylint..."
-      find . -type f -name "*.py" | xargs python3 -m pylint --disable=C0111,C0103,C0303,W0621,C0301,W0612,W0611,R0913,R0914,R0915 || echo "    Pylint found issues in $dir."
+      find . -type f -name "*.py" -print0 |
+        xargs -0 -r "$PYTHON_BIN" -m pylint --disable=C0111,C0103,C0303,W0621,C0301,W0612,W0611,R0913,R0914,R0915 ||
+        echo "    Pylint found issues in $dir."
 
       if [ -n "$VENV_PATH" ]; then
         deactivate
@@ -148,10 +180,11 @@ if [ ! -f "$ROOT_DIR/eslint.config.js" ]; then
 fi
 
 for dir in "${JS_DIRECTORIES[@]}"; do
-  if [ -d "$dir" ]; then
+  full_dir="${ROOT_DIR}/${dir}"
+  if [ -d "$full_dir" ]; then
     echo "Processing JavaScript/TypeScript directory: $dir"
     (
-      cd "$dir"
+      cd "$full_dir"
       # 2.1 Run Prettier (formatter)
       echo "  - Running Prettier..."
       npx prettier --write "**/*.{js,jsx,ts,tsx,json,css,scss,md}" || echo "    Prettier encountered issues in $dir."
@@ -172,10 +205,11 @@ echo "----------------------------------------"
 echo "Running Solidity linting tools..."
 
 for dir in "${SOLIDITY_DIRECTORIES[@]}"; do
-  if [ -d "$dir" ]; then
+  full_dir="${ROOT_DIR}/${dir}"
+  if [ -d "$full_dir" ]; then
     echo "Processing Solidity directory: $dir"
     (
-      cd "$dir"
+      cd "$full_dir"
       # 3.1 Run Prettier (formatter)
       echo "  - Running Prettier for Solidity..."
       npx prettier --write "**/*.sol" || echo "    Prettier encountered issues in $dir."
@@ -195,14 +229,33 @@ echo "----------------------------------------"
 echo "Running YAML linting tools..."
 
 for dir in "${YAML_DIRECTORIES[@]}"; do
-  if [ -d "$dir" ]; then
+  full_dir="${ROOT_DIR}/${dir}"
+  if [ -d "$full_dir" ]; then
     echo "Processing YAML directory: $dir"
     if [ "$YAMLLINT_AVAILABLE" = true ]; then
       echo "  - Running yamllint..."
-      yamllint "$dir" || echo "    yamllint found issues in $dir."
+      yamllint "$full_dir" || echo "    yamllint found issues in $dir."
     else
       echo "  - Performing basic YAML validation using Python..."
-      find "$dir" -type f \( -name "*.yaml" -o -name "*.yml" \) -exec python3 -c "import yaml; import sys; try: yaml.safe_load(open('{}', 'r')) except Exception as e: print(f'YAML Error in {{}}: {{e}}', file=sys.stderr); sys.exit(1)" \; || echo "    Basic YAML validation found issues in $dir."
+      # Pass the filename as a real argv entry (sys.argv[1]) rather than via
+      # `find -exec ... {} ...` string substitution: `find` replaces every
+      # occurrence of the literal `{}` sequence in an -exec argument, which
+      # would also mangle the `{}` used for f-string brace-escaping below.
+      find "$full_dir" -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 |
+        while IFS= read -r -d '' yaml_file; do
+          "${LINT_VENV}/bin/python3" -c "
+import sys
+import yaml
+try:
+    # Kubernetes manifests and similar files commonly contain multiple
+    # '---'-separated documents in one file, which safe_load() (single
+    # document only) would incorrectly flag as an error.
+    list(yaml.safe_load_all(open(sys.argv[1])))
+except Exception as e:
+    print(f'YAML Error in {sys.argv[1]}: {e}', file=sys.stderr)
+    sys.exit(1)
+" "$yaml_file" || echo "    Basic YAML validation found issues in $yaml_file."
+        done
     fi
   else
     echo "Warning: YAML directory $dir not found. Skipping."
@@ -215,11 +268,12 @@ echo "----------------------------------------"
 echo "Running Terraform linting tools..."
 
 for dir in "${TERRAFORM_DIRECTORIES[@]}"; do
-  if [ -d "$dir" ]; then
+  full_dir="${ROOT_DIR}/${dir}"
+  if [ -d "$full_dir" ]; then
     echo "Processing Terraform directory: $dir"
     if [ "$TERRAFORM_AVAILABLE" = true ]; then
       (
-        cd "$dir"
+        cd "$full_dir"
         # 5.1 Run terraform fmt
         echo "  - Running terraform fmt..."
         terraform fmt -recursive . || echo "    terraform fmt encountered issues in $dir."
@@ -244,11 +298,11 @@ echo "Applying common fixes to all file types..."
 
 # 6.1 Fix trailing whitespace
 echo "Fixing trailing whitespace..."
-find "$ROOT_DIR" -type f \( -name "*.py" -o -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" -o -name "*.sol" -o -name "*.yaml" -o -name "*.yml" -o -name "*.tf" -o -name "*.tfvars" -o -name "*.sh" \) -not -path "*/node_modules/*" -not -path "*/venv/*" -exec sed -i 's/[ \t]*$//' {} \;
+find "$ROOT_DIR" -type f \( -name "*.py" -o -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" -o -name "*.sol" -o -name "*.yaml" -o -name "*.yml" -o -name "*.tf" -o -name "*.tfvars" -o -name "*.sh" \) -not -path "*/node_modules/*" -not -path "*/venv/*" -not -path "*/.lint-venv/*" -exec sed -i 's/[ \t]*$//' {} \;
 
 # 6.2 Ensure newline at end of file
 echo "Ensuring newline at end of files..."
-find "$ROOT_DIR" -type f \( -name "*.py" -o -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" -o -name "*.sol" -o -name "*.yaml" -o -name "*.yml" -o -name "*.tf" -o -name "*.tfvars" -o -name "*.sh" \) -not -path "*/node_modules/*" -not -path "*/venv/*" -exec sh -c '[ -n "$(tail -c1 "$1")" ] && echo "" >> "$1"' sh {} \;
+find "$ROOT_DIR" -type f \( -name "*.py" -o -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" -o -name "*.sol" -o -name "*.yaml" -o -name "*.yml" -o -name "*.tf" -o -name "*.tfvars" -o -name "*.sh" \) -not -path "*/node_modules/*" -not -path "*/venv/*" -not -path "*/.lint-venv/*" -exec sh -c '[ -n "$(tail -c1 "$1")" ] && echo "" >> "$1"' sh {} \;
 
 echo "----------------------------------------"
 echo "Linting and fixing process for BlockGuardian completed!"

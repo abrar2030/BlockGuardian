@@ -40,7 +40,8 @@ command_exists() {
 log_message() {
   local message="$1"
   local level="${2:-INFO}"
-  local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+  local timestamp
+  timestamp=$(date +"%Y-%m-%d %H:%M:%S")
   echo -e "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
 }
 
@@ -57,7 +58,7 @@ check_port() {
     lsof -i:"$port" > /dev/null 2>&1
     return $?
   else
-    log_message "Neither nc nor lsof found, cannot check port $port" "WARNING"
+    log_message "Neither nc nor lsof found, cannot check port $port for $service_name" "WARNING"
     return 2
   fi
 }
@@ -72,44 +73,47 @@ check_service() {
 
   log_message "Checking service: $service_name" "INFO"
 
-  # Use a subshell for localized directory changes
+  # Use a subshell for localized directory changes. `set +e` is required here
+  # so a failing check_command doesn't trip the parent script's `set -e` via
+  # the pipeline/subshell exit status, and so we can capture its real exit
+  # code below instead of masking it.
   (
+    set +e
     if [ -n "$service_dir" ] && [ -d "$service_dir" ]; then
       cd "$service_dir"
     fi
 
     # Execute the check command
     log_message "Executing: $check_command" "DEBUG"
-    # Use eval to allow complex commands, but be cautious
     local output
-    output=$(eval "$check_command" 2>&1 || true) # Use || true to prevent subshell exit on failure
+    output=$(eval "$check_command" 2>&1)
     local exit_code=$?
 
     # Save output to file
     echo "$output" > "$service_log"
 
     # Check if command was successful and if expected output is present
-    if [ $exit_code -eq 0 ]; then
+    if [ "$exit_code" -eq 0 ]; then
       if [ -n "$expected_output" ]; then
         if echo "$output" | grep -qF "$expected_output"; then
-          return 0 # Healthy
+          exit 0 # Healthy
         else
-          return 1 # Unhealthy (unexpected output)
+          exit 1 # Unhealthy (unexpected output)
         fi
       else
-        return 0 # Healthy
+        exit 0 # Healthy
       fi
     else
-      return 1 # Unhealthy (command failed)
+      exit 1 # Unhealthy (command failed)
     fi
   )
 
   local status=$?
-  if [ $status -eq 0 ]; then
+  if [ "$status" -eq 0 ]; then
     log_message "Service $service_name is healthy" "SUCCESS"
     echo -e "${GREEN}✓ $service_name is healthy${NC}"
     return 0
-  elif [ $status -eq 1 ]; then
+  elif [ "$status" -eq 1 ]; then
     log_message "Service $service_name is unhealthy" "ERROR"
     echo -e "${RED}✗ $service_name is unhealthy${NC}"
     return 1
@@ -122,8 +126,8 @@ check_service() {
 
 # Function to check backend service
 check_backend() {
-  local backend_dir="${PROJECT_ROOT}/code/backend" # Corrected path based on project structure
-  local backend_port=8000  # Default FastAPI port
+  local backend_dir="${PROJECT_ROOT}/code/backend"
+  local backend_port="${BACKEND_PORT:-5000}" # Flask backend; override with BACKEND_PORT env var
 
   if [ ! -d "$backend_dir" ]; then
     log_message "Backend directory not found: $backend_dir" "ERROR"
@@ -149,8 +153,8 @@ check_backend() {
 
 # Function to check blockchain node
 check_blockchain_node() {
-  local blockchain_dir="${PROJECT_ROOT}/blockchain"
-  local blockchain_port=8545  # Default Ethereum node port
+  local blockchain_dir="${PROJECT_ROOT}/code/blockchain"
+  local blockchain_port="${BLOCKCHAIN_PORT:-8545}" # Default Hardhat node port
 
   if [ ! -d "$blockchain_dir" ]; then
     log_message "Blockchain directory not found: $blockchain_dir" "ERROR"
@@ -177,7 +181,7 @@ check_blockchain_node() {
 # Function to check web frontend
 check_web_frontend() {
   local web_frontend_dir="${PROJECT_ROOT}/web-frontend"
-  local web_frontend_port=3000  # Default Next.js port
+  local web_frontend_port="${WEB_FRONTEND_PORT:-3000}" # Default Next.js port
 
   if [ ! -d "$web_frontend_dir" ]; then
     log_message "Web frontend directory not found: $web_frontend_dir" "ERROR"
@@ -203,7 +207,7 @@ check_web_frontend() {
 
 # Function to check database (Placeholder - assumes a common setup)
 check_database() {
-  local db_port=5432  # Default PostgreSQL port
+  local db_port="${DB_PORT:-5432}" # Default PostgreSQL port; the backend defaults to SQLite in development
 
   if check_port "$db_port" "database"; then
     if command_exists psql; then
@@ -221,15 +225,15 @@ check_database() {
       return 2
     fi
   else
-    log_message "No database service detected on common ports (e.g., $db_port)" "WARNING"
-    echo "| Database | ⚠️ Not Running | No database service detected |" >> "$SUMMARY_FILE"
+    log_message "No database service detected on common ports (e.g., $db_port). The backend may be using SQLite instead." "WARNING"
+    echo "| Database | ⚠️ Not Running | No PostgreSQL detected (backend may be using SQLite) |" >> "$SUMMARY_FILE"
     return 2
   fi
 }
 
 # Function to check Redis cache
 check_redis() {
-  local redis_port=6379  # Default Redis port
+  local redis_port="${REDIS_PORT:-6379}" # Default Redis port
 
   if check_port "$redis_port" "redis"; then
     if command_exists redis-cli; then
@@ -246,7 +250,7 @@ check_redis() {
       return 2
     fi
   else
-    log_message "Redis not running on port $redis_port" "WARNING"
+    log_message "Redis not running on port $redis_port (rate limiting/token revocation will be degraded but the backend still runs)" "WARNING"
     echo "| Redis Cache | ⚠️ Not Running | Port $redis_port not in use |" >> "$SUMMARY_FILE"
     return 2
   fi
@@ -289,9 +293,9 @@ check_docker_containers() {
 check_disk_space() {
   local threshold=90  # Warning threshold percentage
 
-  # Get disk usage percentage for the current filesystem
+  # Get disk usage percentage for the project's filesystem (not the caller's cwd)
   local disk_usage
-  disk_usage=$(df -P . | awk 'NR==2 {print $5}' | sed 's/%//')
+  disk_usage=$(df -P "$PROJECT_ROOT" | awk 'NR==2 {print $5}' | sed 's/%//')
 
   if [ -z "$disk_usage" ]; then
     log_message "Could not determine disk usage" "ERROR"
@@ -334,14 +338,19 @@ run_health_checks() {
 
   for check in "${checks[@]}"; do
     echo -e "${BLUE}Checking $check...${NC}"
-    # Execute the function and capture its return code
-    "$check"
-    local status=$?
+    # Execute the function and capture its return code without letting a
+    # non-zero status trip `set -e` (this is a bare call, not an `if`).
+    status=0
+    "$check" || status=$?
 
+    # NOTE: use `var=$((var + 1))` rather than `((var++))`. Under `set -e`,
+    # the post-increment form evaluates to the *pre*-increment value, so
+    # incrementing from 0 evaluates to arithmetic 0 (shell "false") and kills
+    # the whole script right there the first time any counter is bumped from 0.
     case $status in
-      0) ((healthy++)) ;;
-      1) ((unhealthy++)) ;;
-      2) ((warnings++)) ;;
+      0) healthy=$((healthy + 1)) ;;
+      1) unhealthy=$((unhealthy + 1)) ;;
+      2) warnings=$((warnings + 1)) ;;
     esac
   done
 
@@ -364,7 +373,7 @@ run_health_checks() {
   log_message "Health check completed. Results saved to $SUMMARY_FILE" "INFO"
 
   # Return non-zero exit code if any services are unhealthy
-  if [ $unhealthy -gt 0 ]; then
+  if [ "$unhealthy" -gt 0 ]; then
     return 1
   else
     return 0

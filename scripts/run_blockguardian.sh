@@ -2,11 +2,14 @@
 
 # BlockGuardian Run Script
 # This script starts the backend, blockchain, and frontend components.
-# It is designed to be run from the root of the BlockGuardian project directory.
+# It can be run from anywhere - the project root is resolved from this
+# script's own location, not the caller's current working directory.
 
 # --- Configuration and Setup ---
 set -euo pipefail # Exit on error, unset variable, and pipe failure
-ROOT_DIR=$(pwd)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 # Colors for terminal output
 GREEN='\033[0;32m'
@@ -15,6 +18,13 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}Starting BlockGuardian application...${NC}"
+
+# PIDs of the background services we start below. These are only ever set in
+# this top-level scope (never inside a `(...)` subshell) so that cleanup()
+# and the final `wait` can actually see and act on them.
+BACKEND_PID=""
+BLOCKCHAIN_PID=""
+FRONTEND_PID=""
 
 # Function to check if a process is running and kill it
 cleanup() {
@@ -36,43 +46,47 @@ cleanup() {
 # Trap signals for graceful shutdown
 trap cleanup SIGINT SIGTERM
 
-# --- Virtual Environment Setup ---
-VENV_DIR="$ROOT_DIR/venv"
-if [ ! -d "$VENV_DIR" ]; then
-  echo -e "${BLUE}Creating Python virtual environment...${NC}"
-  python3 -m venv "$VENV_DIR"
-fi
-
-# Activate virtual environment for dependency installation
-source "$VENV_DIR/bin/activate"
-
 # --- Start Backend Server ---
 echo -e "${BLUE}Starting backend server...${NC}"
 BACKEND_DIR="$ROOT_DIR/code/backend"
 if [ -d "$BACKEND_DIR" ]; then
+  # Use the backend's own virtual environment (matching setup_blockguardian_env.sh
+  # and code/backend/run.sh), creating it if it doesn't exist yet.
+  if [ ! -d "$BACKEND_DIR/venv" ]; then
+    echo -e "${BLUE}Creating Python virtual environment for backend...${NC}"
+    python3 -m venv "$BACKEND_DIR/venv"
+  fi
+
+  # The ENTIRE subshell is backgrounded as one job here (rather than
+  # backgrounding a command *inside* the subshell), which is what allows
+  # `$!` below to capture a PID that's still valid in this outer scope.
+  # Backgrounding inside the subshell instead would background a process
+  # that only the (already-finished) subshell ever knew the PID of, leaving
+  # cleanup() and `wait` below with nothing to act on.
   (
     cd "$BACKEND_DIR"
+    # shellcheck disable=SC1091
+    source venv/bin/activate
     pip install -r requirements.txt > /dev/null
-    # Use uvicorn or gunicorn for production, but app.py for development
-    python app.py &
-    BACKEND_PID=$!
-    echo -e "${GREEN}Backend started with PID: ${BACKEND_PID}${NC}"
-  )
+    exec python src/main.py
+  ) &
+  BACKEND_PID=$!
+  echo -e "${GREEN}Backend started with PID: ${BACKEND_PID}${NC}"
 else
   echo -e "${RED}Warning: Backend directory not found at $BACKEND_DIR. Skipping backend start.${NC}"
 fi
 
 # --- Start Blockchain Node ---
 echo -e "${BLUE}Starting blockchain node...${NC}"
-BLOCKCHAIN_DIR="$ROOT_DIR/blockchain"
+BLOCKCHAIN_DIR="$ROOT_DIR/code/blockchain"
 if [ -d "$BLOCKCHAIN_DIR" ]; then
   (
     cd "$BLOCKCHAIN_DIR"
     npm install > /dev/null
-    npm run node &
-    BLOCKCHAIN_PID=$!
-    echo -e "${GREEN}Blockchain node started with PID: ${BLOCKCHAIN_PID}${NC}"
-  )
+    exec npm run node
+  ) &
+  BLOCKCHAIN_PID=$!
+  echo -e "${GREEN}Blockchain node started with PID: ${BLOCKCHAIN_PID}${NC}"
 else
   echo -e "${RED}Warning: Blockchain directory not found at $BLOCKCHAIN_DIR. Skipping blockchain start.${NC}"
 fi
@@ -88,21 +102,23 @@ if [ -d "$FRONTEND_DIR" ]; then
   (
     cd "$FRONTEND_DIR"
     npm install > /dev/null
-    npm run dev & # Assuming 'dev' is the standard development start script for Next.js
-    FRONTEND_PID=$!
-    echo -e "${GREEN}Web Frontend started with PID: ${FRONTEND_PID}${NC}"
-  )
+    exec npm run dev # 'dev' is the standard development start script for Next.js
+  ) &
+  FRONTEND_PID=$!
+  echo -e "${GREEN}Web Frontend started with PID: ${FRONTEND_PID}${NC}"
 else
   echo -e "${RED}Warning: Web Frontend directory not found at $FRONTEND_DIR. Skipping frontend start.${NC}"
 fi
 
-# Deactivate virtual environment
-deactivate
-
 # --- Final Status ---
 echo -e "${GREEN}BlockGuardian application is attempting to run!${NC}"
-echo -e "${GREEN}Access the application at: http://localhost:3000 (or check component logs for correct port)${NC}"
+echo -e "${GREEN}Web frontend: http://localhost:3000${NC}"
+echo -e "${GREEN}Backend API:  http://localhost:5000${NC}"
+echo -e "${GREEN}Blockchain node (JSON-RPC): http://localhost:8545${NC}"
 echo -e "${BLUE}Press Ctrl+C to stop all services${NC}"
 
-# Keep script running until interrupted
+# Keep the script running until interrupted. Because each service above was
+# backgrounded directly in this shell (not inside a now-finished subshell),
+# their jobs are actually tracked here, so `wait` correctly blocks until they
+# exit or this script receives SIGINT/SIGTERM (handled by cleanup() above).
 wait

@@ -1,115 +1,82 @@
 const { test, expect } = require("@playwright/test");
 
-test.describe("BlockGuardian E2E", () => {
-  test("home page loads and displays hero heading", async ({ page }) => {
+// These specs exercise the real UI against a running backend (see README.md
+// for how to seed and start one). Run with `npm run test:e2e`.
+
+test.describe("Public pages", () => {
+  test("home page loads with hero and CTAs", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/BlockGuardian/i);
-    await expect(page.locator("h1")).toBeVisible();
-    const h1Text = await page.locator("h1").textContent();
-    expect(h1Text).toMatch(/Guard Your/i);
+    await expect(
+      page.getByRole("heading", { name: /Guard and grow your/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Create free account/i }),
+    ).toBeVisible();
   });
 
-  test("home page has CTA links that navigate correctly", async ({ page }) => {
+  test("navbar links to login and register", async ({ page }) => {
     await page.goto("/");
-    const exploreLink = page.getByRole("link", { name: /Explore Portfolio/i });
-    await expect(exploreLink).toBeVisible();
-    await exploreLink.click();
-    await expect(page).toHaveURL(/\/portfolio/);
+    await page.getByRole("link", { name: "Sign In" }).click();
+    await expect(page).toHaveURL(/\/login/);
+    await page.getByRole("link", { name: /Create one for free/i }).click();
+    await expect(page).toHaveURL(/\/register/);
   });
 
-  test("navbar brand logo links to home", async ({ page }) => {
-    await page.goto("/portfolio");
-    await page.getByText("BlockGuardian").first().click();
-    await expect(page).toHaveURL("/");
+  test("about, contact, privacy, and terms pages render", async ({ page }) => {
+    for (const [path, heading] of [
+      ["/about", /About/i],
+      ["/contact", /Get in touch/i],
+      ["/privacy", /Privacy Policy/i],
+      ["/terms", /Terms of Service/i],
+    ]) {
+      await page.goto(path);
+      await expect(
+        page.getByRole("heading", { name: heading }).first(),
+      ).toBeVisible();
+    }
   });
 
+  test("dark mode toggle works", async ({ page }) => {
+    await page.goto("/");
+    await page.locator('button[aria-label="Toggle dark mode"]').click();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+  });
+
+  test("unknown route shows 404 page", async ({ page }) => {
+    await page.goto("/this-route-does-not-exist");
+    await expect(page.getByText("404")).toBeVisible();
+  });
+});
+
+test.describe("Authentication", () => {
   test("login page renders form", async ({ page }) => {
     await page.goto("/login");
     await expect(
       page.getByRole("heading", { name: /Welcome back/i }),
     ).toBeVisible();
-    await expect(page.getByPlaceholder(/you@example.com/i)).toBeVisible();
-    await expect(page.getByLabel(/^Password$/i)).toBeVisible();
+    await expect(page.locator("#email")).toBeVisible();
+    await expect(page.locator("#password")).toBeVisible();
   });
 
-  test("login form shows validation error for empty submit", async ({
+  test("login shows an error for invalid credentials", async ({ page }) => {
+    await page.goto("/login");
+    await page.fill("#email", "nobody@example.com");
+    await page.fill("#password", "WrongPassword123!");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByText(/invalid/i)).toBeVisible({ timeout: 10000 });
+  });
+
+  test("register page enforces required fields", async ({ page }) => {
+    await page.goto("/register");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page.getByText(/is required/i).first()).toBeVisible();
+  });
+
+  test("visiting a protected page while signed out redirects to login", async ({
     page,
   }) => {
-    await page.goto("/login");
-    await page.getByRole("button", { name: /Sign in/i }).click();
-    await expect(
-      page.getByText(/Please fill in all required fields/i),
-    ).toBeVisible();
-  });
-
-  test("login switches to signup mode", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByRole("button", { name: /Sign up for free/i }).click();
-    await expect(
-      page.getByRole("heading", { name: /Create an account/i }),
-    ).toBeVisible();
-    await expect(page.getByLabel(/Full Name/i)).toBeVisible();
-    await expect(page.getByLabel(/Confirm Password/i)).toBeVisible();
-  });
-
-  test("portfolio page loads", async ({ page }) => {
-    await page.goto("/portfolio");
-    await expect(
-      page.getByRole("heading", { name: /Portfolio Dashboard/i }),
-    ).toBeVisible();
-  });
-
-  test("dashboard page loads", async ({ page }) => {
     await page.goto("/dashboard");
-    await expect(
-      page.getByRole("heading", { name: /Dashboard/i }),
-    ).toBeVisible();
-  });
-
-  test("dashboard tabs are clickable", async ({ page }) => {
-    await page.goto("/dashboard");
-    await page.getByRole("button", { name: /activity/i }).click();
-    await expect(page.getByText(/Activity History/i)).toBeVisible();
-
-    await page.getByRole("button", { name: /settings/i }).click();
-    await expect(page.getByText(/Account Settings/i)).toBeVisible();
-  });
-
-  test("market analysis page loads", async ({ page }) => {
-    await page.goto("/market-analysis");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  });
-
-  test("AI recommendations page loads", async ({ page }) => {
-    await page.goto("/ai-recommendations");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  });
-
-  test("blockchain explorer page loads", async ({ page }) => {
-    await page.goto("/blockchain-explorer");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  });
-
-  test("dark mode toggle works on login page", async ({ page }) => {
-    await page.goto("/login");
-    const toggleBtn = page.getByRole("button", { name: /Toggle dark mode/i });
-    await expect(toggleBtn).toBeVisible();
-    await toggleBtn.click();
-  });
-
-  test("navbar mobile menu opens and closes", async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto("/");
-    const menuBtn = page.getByRole("button", { name: /Open main menu/i });
-    await menuBtn.click();
-    await expect(
-      page.getByRole("link", { name: /Portfolio/i }).first(),
-    ).toBeVisible();
-    await menuBtn.click();
-  });
-
-  test("footer renders with platform links", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByRole("contentinfo")).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
   });
 });

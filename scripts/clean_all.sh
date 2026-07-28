@@ -10,7 +10,6 @@ set -euo pipefail # Exit on error, unset variable, and pipe failure
 # Set colors for terminal output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Script directory and project root
@@ -71,7 +70,7 @@ main() {
   clean_component "Backend" "${PROJECT_ROOT}/code/backend" ""
 
   # 2. Blockchain Clean
-  clean_component "Blockchain" "${PROJECT_ROOT}/blockchain" "rm -rf cache artifacts"
+  clean_component "Blockchain" "${PROJECT_ROOT}/code/blockchain" "rm -rf cache artifacts"
 
   # 3. Web Frontend Clean
   clean_component "Web Frontend" "${PROJECT_ROOT}/web-frontend" "rm -rf out"
@@ -87,6 +86,7 @@ main() {
   rm -rf "${PROJECT_ROOT}/test-results" || true
   rm -rf "${PROJECT_ROOT}/deployment-logs" || true
   rm -rf "${PROJECT_ROOT}/health-checks" || true
+  rm -rf "${PROJECT_ROOT}/.lint-venv" || true
   echo -e "${GREEN}✓ Root-level clean successful.${NC}"
 
   # -----------------------------------------------------------------------------

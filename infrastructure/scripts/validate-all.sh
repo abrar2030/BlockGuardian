@@ -23,8 +23,8 @@ LOG_DIR="${INFRA_DIR}/logs/validation"
 mkdir -p "$LOG_DIR"
 
 pass()  { echo -e "${GREEN}  ✓ $1${NC}"; }
-fail()  { echo -e "${RED}  ✗ $1${NC}"; VALIDATION_PASSED=false; ((ERRORS++)); }
-warn()  { echo -e "${YELLOW}  ⚠ $1${NC}"; ((WARNINGS++)); }
+fail()  { echo -e "${RED}  ✗ $1${NC}"; VALIDATION_PASSED=false; ERRORS=$((ERRORS + 1)); }
+warn()  { echo -e "${YELLOW}  ⚠ $1${NC}"; WARNINGS=$((WARNINGS + 1)); }
 info()  { echo -e "${BLUE}  → $1${NC}"; }
 section() { echo -e "\n${YELLOW}=== $1 ===${NC}"; }
 
@@ -192,16 +192,17 @@ fi
 section "Security Checks"
 
 info "Checking for hardcoded secrets..."
-SECRET_PATTERNS='password\s*=\s*"[^${\"]+'
 FOUND_SECRETS=false
 
-# Scan tfvars for hardcoded passwords (excluding example/template values)
+# Scan tfvars for hardcoded passwords (excluding example/template values and
+# comments, e.g. "# export TF_VAR_db_password=..." documenting the secure
+# way to set it, which would otherwise false-positive-match this check).
 while IFS= read -r -d '' file; do
-    if grep -qiE 'db_password\s*=\s*"[^$]' "$file" 2>/dev/null; then
+    if grep -v '^\s*#' "$file" 2>/dev/null | grep -qiE '^\s*db_password\s*=\s*"[^$]'; then
         warn "Potential hardcoded password in: $file"
         FOUND_SECRETS=true
     fi
-done < <(find "$INFRA_DIR/terraform/environments" -name "*.tfvars" -print0)
+done < <(find "$INFRA_DIR/terraform/environments" -type f -name "*.tfvars" -print0)
 
 if [[ "$FOUND_SECRETS" == "false" ]]; then
     pass "No hardcoded passwords in tfvars"

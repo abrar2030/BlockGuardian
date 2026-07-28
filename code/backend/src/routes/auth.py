@@ -385,9 +385,9 @@ def update_profile() -> Any:
         allowed_fields = [
             "first_name",
             "last_name",
-            "phone",
+            "phone_number",
+            "address_line1",
             "city",
-            "state",
             "country",
             "postal_code",
         ]

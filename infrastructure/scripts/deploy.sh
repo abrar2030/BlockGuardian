@@ -53,7 +53,7 @@ validate_environment() {
 validate_prerequisites() {
     log "Validating prerequisites..."
 
-    local required_tools=("terraform" "kubectl" "aws" "docker" "helm" "ansible")
+    local required_tools=("terraform" "kubectl" "aws" "docker" "ansible" "jq")
     for tool in "${required_tools[@]}"; do
         if ! command -v "$tool" &> /dev/null; then
             error "$tool is required but not installed"
@@ -99,7 +99,7 @@ security_scan() {
     info "Scanning Kubernetes manifests..."
     cd "$PROJECT_ROOT/kubernetes"
     if command -v kubesec &> /dev/null; then
-        find . -name "*.yaml" -o -name "*.yml" | xargs -I{} kubesec scan {} || warn "kubesec scan completed with warnings"
+        find . -type f \( -name "*.yaml" -o -name "*.yml" \) -print0 | xargs -0 -r -I{} kubesec scan {} || warn "kubesec scan completed with warnings"
     else
         warn "kubesec not found - skipping Kubernetes security scan"
     fi
@@ -179,10 +179,10 @@ kubernetes_deploy() {
     [[ "$env" == "staging" ]] && ns="staging"
     [[ "$env" == "prod" ]] && ns="production"
 
-    kubectl rollout status deployment/dev-blockguardian-backend -n "$ns" --timeout=300s || \
-    kubectl rollout status deployment/staging-blockguardian-backend -n "$ns" --timeout=300s || \
-    kubectl rollout status deployment/prod-blockguardian-backend -n "$ns" --timeout=300s || \
-    warn "Rollout status check failed - verify manually"
+    kubectl rollout status "deployment/${env}-blockguardian-backend" -n "$ns" --timeout=300s || \
+        warn "Backend rollout status check failed - verify manually"
+    kubectl rollout status "deployment/${env}-blockguardian-frontend" -n "$ns" --timeout=300s || \
+        warn "Frontend rollout status check failed - verify manually"
 
     log "Kubernetes deployment completed for $env"
 }
@@ -236,7 +236,14 @@ main() {
                 error "Destroy is not allowed for production environment via this script"
             fi
             cd "$PROJECT_ROOT/terraform"
-            terraform destroy -var-file="environments/${ENVIRONMENT}/terraform.tfvars" -auto-approve
+            local destroy_tfvars="environments/${ENVIRONMENT}/terraform.tfvars"
+            if [[ ! -f "$destroy_tfvars" ]]; then
+                error "Terraform vars file not found: $destroy_tfvars"
+            fi
+            if [[ -z "${TF_VAR_db_password:-}" ]]; then
+                error "TF_VAR_db_password environment variable is not set. Set it before destroying."
+            fi
+            terraform destroy -var-file="$destroy_tfvars" -auto-approve
             ;;
         *)
             error "Unknown action: $ACTION. Valid: deploy, plan, terraform-only, kubernetes-only, ansible-only, destroy"

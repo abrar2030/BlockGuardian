@@ -11,7 +11,6 @@ set -euo pipefail # Exit on error, unset variable, and pipe failure
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
-YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Script directory and project root
@@ -35,11 +34,25 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Map a component name to its real directory. `backend` and `blockchain` live
+# under `code/`, unlike `web-frontend`/`mobile-frontend` which are top-level -
+# a bare "${PROJECT_ROOT}/${component}" never resolves correctly for the first two.
+component_dir_for() {
+  case "$1" in
+    backend) echo "${PROJECT_ROOT}/code/backend" ;;
+    blockchain) echo "${PROJECT_ROOT}/code/blockchain" ;;
+    web-frontend) echo "${PROJECT_ROOT}/web-frontend" ;;
+    mobile-frontend) echo "${PROJECT_ROOT}/mobile-frontend" ;;
+    *) echo "" ;;
+  esac
+}
+
 # Function to log messages
 log_message() {
   local message="$1"
   local level="${2:-INFO}"
-  local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+  local timestamp
+  timestamp=$(date +"%Y-%m-%d %H:%M:%S")
   # Check if LOG_FILE is set before attempting to tee
   if [ -n "$LOG_FILE" ]; then
     echo -e "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
@@ -65,12 +78,17 @@ show_usage() {
 
 # Parse command line arguments
 parse_arguments() {
+  ENVIRONMENT=""
   SKIP_TESTS=false
   COMPONENT="all"
 
-  # Set log files now that we know the run time
-  LOG_FILE="${DEPLOY_LOG_DIR}/deployment_$(date +%Y%m%d_%H%M%S).log"
-  SUMMARY_FILE="${DEPLOY_LOG_DIR}/deployment_summary_$(date +%Y%m%d_%H%M%S).md"
+  # Set log files now that we know the run time (compute the timestamp once
+  # so both filenames are guaranteed to match, rather than risking two
+  # separate `date` calls straddling a second boundary).
+  local run_timestamp
+  run_timestamp=$(date +%Y%m%d_%H%M%S)
+  LOG_FILE="${DEPLOY_LOG_DIR}/deployment_${run_timestamp}.log"
+  SUMMARY_FILE="${DEPLOY_LOG_DIR}/deployment_summary_${run_timestamp}.md"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -119,7 +137,8 @@ parse_arguments() {
 # Function to run tests for a component
 run_tests() {
   local component="$1"
-  local component_dir="${PROJECT_ROOT}/${component}"
+  local component_dir
+  component_dir=$(component_dir_for "$component")
   local test_log="${DEPLOY_LOG_DIR}/${component}_tests.log"
 
   if [ "$SKIP_TESTS" = true ]; then
@@ -129,8 +148,8 @@ run_tests() {
 
   log_message "Running tests for $component..." "INFO"
 
-  if [ ! -d "$component_dir" ]; then
-    log_message "Component directory not found: $component_dir" "ERROR"
+  if [ -z "$component_dir" ] || [ ! -d "$component_dir" ]; then
+    log_message "Component directory not found: ${component_dir:-<unknown component: $component>}" "ERROR"
     echo "| $component | ❌ Tests Failed | Directory not found |" >> "$SUMMARY_FILE"
     return 1
   fi
@@ -144,6 +163,7 @@ run_tests() {
     case "$component" in
       backend)
         if [ -d "venv" ]; then
+          # shellcheck disable=SC1091
           source venv/bin/activate
           python -m pytest tests/ > "$test_log" 2>&1
           exit_code=$?
@@ -155,7 +175,10 @@ run_tests() {
         ;;
       web-frontend|mobile-frontend)
         if command_exists npm; then
-          npm test > "$test_log" 2>&1
+          # Invoke jest directly rather than `npm test`: the npm script bakes
+          # in --coverage, and jest.config.js's global coverage threshold can
+          # fail the whole run even when every actual test passes.
+          npx jest --ci > "$test_log" 2>&1
           exit_code=$?
         else
           log_message "npm not found, cannot run $component tests" "ERROR"
@@ -196,13 +219,14 @@ run_tests() {
 # Function to build a component
 build_component() {
   local component="$1"
-  local component_dir="${PROJECT_ROOT}/${component}"
+  local component_dir
+  component_dir=$(component_dir_for "$component")
   local build_log="${DEPLOY_LOG_DIR}/${component}_build.log"
 
   log_message "Building $component for $ENVIRONMENT environment..." "INFO"
 
-  if [ ! -d "$component_dir" ]; then
-    log_message "Component directory not found: $component_dir" "ERROR"
+  if [ -z "$component_dir" ] || [ ! -d "$component_dir" ]; then
+    log_message "Component directory not found: ${component_dir:-<unknown component: $component>}" "ERROR"
     echo "| $component | ❌ Build Failed | Directory not found |" >> "$SUMMARY_FILE"
     return 1
   fi
@@ -217,6 +241,7 @@ build_component() {
       backend)
         # Backend build is often just a static file collection or no-op
         if [ -d "venv" ]; then
+          # shellcheck disable=SC1091
           source venv/bin/activate
           # Example: python manage.py collectstatic --noinput
           log_message "Backend build step completed" "SUCCESS"
@@ -231,16 +256,28 @@ build_component() {
         if command_exists npm; then
           # Set environment-specific variables
           export APP_ENV="$ENVIRONMENT"
-          export API_URL="https://api.blockguardian.example.com"
+          local API_URL="https://api.blockguardian.example.com"
           if [ "$ENVIRONMENT" = "production" ]; then
             API_URL="https://api.blockguardian.com"
           elif [ "$ENVIRONMENT" = "staging" ]; then
             API_URL="https://api-staging.blockguardian.com"
           fi
-          export REACT_APP_API_URL="$API_URL" # For React/Next.js
+          # Each app only reads its own framework's env var prefix - Next.js
+          # (web-frontend) needs NEXT_PUBLIC_*, Expo (mobile-frontend) needs
+          # EXPO_PUBLIC_*. REACT_APP_* (Create React App's convention) matches
+          # neither and was silently ignored by both apps.
+          export NEXT_PUBLIC_API_URL="$API_URL"
+          export EXPO_PUBLIC_API_URL="$API_URL"
 
-          # Build the application
-          npm run build > "$build_log" 2>&1
+          # Build the application. mobile-frontend (Expo) has no generic
+          # "build" script - a static bundle is produced via the Expo CLI
+          # instead of assuming `npm run build` exists.
+          if [ "$component" = "mobile-frontend" ]; then
+            npm install > "$build_log" 2>&1 &&
+              npx expo export --platform web --output-dir dist >> "$build_log" 2>&1
+          else
+            npm install > "$build_log" 2>&1 && npm run build >> "$build_log" 2>&1
+          fi
           exit_code=$?
         else
           log_message "npm not found, cannot build $component" "ERROR"
@@ -282,18 +319,25 @@ build_component() {
 # Function to deploy a component
 deploy_component() {
   local component="$1"
-  local component_dir="${PROJECT_ROOT}/${component}"
+  local component_dir
+  component_dir=$(component_dir_for "$component")
 
   log_message "Deploying $component to $ENVIRONMENT environment..." "INFO"
 
-  if [ ! -d "$component_dir" ]; then
-    log_message "Component directory not found: $component_dir" "ERROR"
+  if [ -z "$component_dir" ] || [ ! -d "$component_dir" ]; then
+    log_message "Component directory not found: ${component_dir:-<unknown component: $component>}" "ERROR"
     echo "| $component | ❌ Deployment Failed | Directory not found |" >> "$SUMMARY_FILE"
     return 1
   fi
 
-  # Use a subshell for localized directory changes
+  # Use a subshell for localized directory changes. `set +e` keeps this
+  # consistent with run_tests/build_component: today's case branches only
+  # log/echo (which practically never fail), but a real deployment command
+  # (rsync, aws s3 sync, docker push, etc.) dropped in here later could fail
+  # and, without this, would silently kill the whole script via `set -e`
+  # instead of being caught and reported below.
   (
+    set +e
     cd "$component_dir"
 
     case "$component" in
@@ -306,7 +350,7 @@ deploy_component() {
       web-frontend)
         # Deployment logic for web-frontend (e.g., S3 sync, CDN upload)
         log_message "Simulating web frontend deployment to $ENVIRONMENT..." "INFO"
-        # Example: aws s3 sync build/ s3://blockguardian-frontend/
+        # Example: aws s3 sync .next/ s3://blockguardian-frontend/
         echo "| $component | ✅ Deployment Simulated | $ENVIRONMENT deployment would happen here |" >> "$SUMMARY_FILE"
         ;;
       mobile-frontend)
@@ -391,14 +435,14 @@ deploy() {
     # 3. Deploy component (only if tests and build passed)
     if [ "$component_failed" = false ]; then
       if deploy_component "$component"; then
-        ((success_count++))
+        success_count=$((success_count + 1))
       else
         component_failed=true
       fi
     fi
 
     if [ "$component_failed" = true ]; then
-      ((failure_count++))
+      failure_count=$((failure_count + 1))
     fi
   done
 

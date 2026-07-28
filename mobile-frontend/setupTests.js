@@ -4,23 +4,6 @@ jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
 );
 
-jest.mock("react-native-get-random-values", () => ({
-  getRandomValues: jest.fn(),
-}));
-
-jest.mock("@walletconnect/modal-react-native", () => ({
-  WalletConnectModal: "WalletConnectModal",
-  useWalletConnectModal: jest.fn(() => ({
-    open: jest.fn(),
-    close: jest.fn(),
-    isConnected: false,
-    address: null,
-    provider: null,
-  })),
-}));
-
-jest.mock("@walletconnect/react-native-compat", () => ({}));
-
 jest.mock("@react-native-community/netinfo", () => ({
   fetch: jest.fn(() =>
     Promise.resolve({
@@ -41,22 +24,37 @@ jest.mock("react-native-safe-area-context", () => ({
 
 jest.mock("@react-navigation/native", () => ({
   NavigationContainer: ({ children }) => children,
+  DarkTheme: { colors: {} },
   useNavigation: () => ({
     navigate: jest.fn(),
     replace: jest.fn(),
     goBack: jest.fn(),
+    reset: jest.fn(),
   }),
   useRoute: () => ({ params: {} }),
+  useFocusEffect: (callback) => {
+    const React = require("react");
+    React.useEffect(() => {
+      const cleanup = callback();
+      return typeof cleanup === "function" ? cleanup : undefined;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+  },
 }));
 
 jest.mock("@react-navigation/native-stack", () => ({
   createNativeStackNavigator: () => ({
     Navigator: ({ children }) => children,
-    Screen: ({ component: Component, ...props }) => null,
+    Screen: () => null,
   }),
 }));
 
-jest.mock("react-native/Libraries/Animated/NativeAnimatedHelper");
+jest.mock("@react-navigation/bottom-tabs", () => ({
+  createBottomTabNavigator: () => ({
+    Navigator: ({ children }) => children,
+    Screen: () => null,
+  }),
+}));
 
 global.console = {
   ...console,

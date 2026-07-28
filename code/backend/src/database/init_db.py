@@ -19,7 +19,6 @@ from src.models.base import Base, db_manager
 from src.models.portfolio import Asset, AssetType, Portfolio, PortfolioType, RiskLevel
 from src.models.user import AMLRiskLevel, KYCStatus, User, UserRole, UserStatus, db
 from src.security.auth import auth_manager
-from src.security.encryption import encryption_manager
 
 logger = get_logger(__name__)
 
@@ -51,7 +50,7 @@ def create_indexes() -> None:
             )
             conn.execute(
                 text(
-                    "CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login)"
+                    "CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login_at)"
                 )
             )
             conn.execute(
@@ -142,7 +141,6 @@ def create_admin_user() -> Any:
                 last_name="Administrator",
                 status=UserStatus.ACTIVE,
                 role=UserRole.ADMIN,
-                tier=UserTier.ENTERPRISE,
                 kyc_status=KYCStatus.APPROVED,
                 aml_risk_level=AMLRiskLevel.LOW,
                 country="US",
@@ -397,7 +395,6 @@ def create_demo_user() -> Any:
                 last_name="User",
                 status=UserStatus.ACTIVE,
                 role=UserRole.USER,
-                tier=UserTier.PREMIUM,
                 kyc_status=KYCStatus.APPROVED,
                 aml_risk_level=AMLRiskLevel.LOW,
                 country="US",
@@ -451,7 +448,6 @@ def initialize_database() -> None:
         db.init_app(app)
         db_manager.init_app(app)
         auth_manager.init_app(app)
-        encryption_manager.init_app(app)
         if not create_database_schema():
             logging.error("Database initialization failed")
             return False

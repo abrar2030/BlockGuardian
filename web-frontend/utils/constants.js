@@ -1,109 +1,125 @@
 // Application constants and configuration
+// Matched 1:1 against the real Flask backend in code/backend/src/routes
 
 // API Configuration
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 export const API_BASE_PATH = process.env.NEXT_PUBLIC_API_BASE_PATH || "/api";
 
-// API Endpoints
+// API Endpoints - every path below exists as a real Flask route
 export const API_ENDPOINTS = {
   AUTH: {
-    LOGIN: `${API_BASE_PATH}/auth/login`,
     REGISTER: `${API_BASE_PATH}/auth/register`,
+    LOGIN: `${API_BASE_PATH}/auth/login`,
     LOGOUT: `${API_BASE_PATH}/auth/logout`,
     REFRESH: `${API_BASE_PATH}/auth/refresh`,
-    ME: `${API_BASE_PATH}/auth/me`,
+    SETUP_MFA: `${API_BASE_PATH}/auth/setup-mfa`,
+    ENABLE_MFA: `${API_BASE_PATH}/auth/enable-mfa`,
+    DISABLE_MFA: `${API_BASE_PATH}/auth/disable-mfa`,
+    CHANGE_PASSWORD: `${API_BASE_PATH}/auth/change-password`,
+    PROFILE: `${API_BASE_PATH}/auth/profile`,
+    VERIFY_TOKEN: `${API_BASE_PATH}/auth/verify-token`,
   },
   PORTFOLIO: {
-    LIST: `${API_BASE_PATH}/portfolios`,
-    CREATE: `${API_BASE_PATH}/portfolios`,
+    LIST: `${API_BASE_PATH}/portfolios/`,
+    CREATE: `${API_BASE_PATH}/portfolios/`,
     DETAIL: (id) => `${API_BASE_PATH}/portfolios/${id}`,
     UPDATE: (id) => `${API_BASE_PATH}/portfolios/${id}`,
     DELETE: (id) => `${API_BASE_PATH}/portfolios/${id}`,
+    HOLDINGS: (id) => `${API_BASE_PATH}/portfolios/${id}/holdings`,
+    TRANSACTIONS: (id) => `${API_BASE_PATH}/portfolios/${id}/transactions`,
+    CANCEL_TRANSACTION: (id, txId) =>
+      `${API_BASE_PATH}/portfolios/${id}/transactions/${txId}/cancel`,
+    BUY: (id) => `${API_BASE_PATH}/portfolios/${id}/buy`,
+    SELL: (id) => `${API_BASE_PATH}/portfolios/${id}/sell`,
+    PERFORMANCE: (id) => `${API_BASE_PATH}/portfolios/${id}/performance`,
+    ALLOCATION: (id) => `${API_BASE_PATH}/portfolios/${id}/allocation`,
+    RISK: (id) => `${API_BASE_PATH}/portfolios/${id}/risk`,
   },
-  TRANSACTIONS: {
-    LIST: `${API_BASE_PATH}/transactions`,
-    CREATE: `${API_BASE_PATH}/transactions`,
-    DETAIL: (id) => `${API_BASE_PATH}/transactions/${id}`,
-  },
-  BLOCKCHAIN: {
-    EXPLORE: `${API_BASE_PATH}/blockchain/explore`,
-    TRANSACTION: (hash) => `${API_BASE_PATH}/blockchain/transaction/${hash}`,
-    ADDRESS: (address) => `${API_BASE_PATH}/blockchain/address/${address}`,
-    BLOCK: (number) => `${API_BASE_PATH}/blockchain/block/${number}`,
-  },
-  ANALYTICS: {
-    MARKET: `${API_BASE_PATH}/analytics/market`,
-    AI_RECOMMENDATIONS: `${API_BASE_PATH}/analytics/ai-recommendations`,
-  },
-  ADMIN: {
-    USERS: `${API_BASE_PATH}/admin/users`,
-    STATS: `${API_BASE_PATH}/admin/stats`,
+  ASSETS: {
+    LIST: `${API_BASE_PATH}/portfolios/assets`,
+    SEARCH: `${API_BASE_PATH}/portfolios/assets/search`,
   },
   HEALTH: "/health",
   INFO: `${API_BASE_PATH}/info`,
-};
-
-// Blockchain Network Configuration
-export const NETWORKS = {
-  MAINNET: { id: 1, name: "Ethereum Mainnet", chainId: "0x1" },
-  GOERLI: { id: 5, name: "Goerli Testnet", chainId: "0x5" },
-  SEPOLIA: { id: 11155111, name: "Sepolia Testnet", chainId: "0xaa36a7" },
 };
 
 // Application Routes
 export const ROUTES = {
   HOME: "/",
   LOGIN: "/login",
+  REGISTER: "/register",
   DASHBOARD: "/dashboard",
-  PORTFOLIO: "/portfolio",
-  MARKET_ANALYSIS: "/market-analysis",
-  AI_RECOMMENDATIONS: "/ai-recommendations",
-  BLOCKCHAIN_EXPLORER: "/blockchain-explorer",
-  ADMIN: "/admin",
+  PORTFOLIOS: "/portfolios",
+  PORTFOLIO_DETAIL: (id) => `/portfolios/${id}`,
+  MARKETS: "/markets",
+  ACCOUNT: "/account",
+  ABOUT: "/about",
+  CONTACT: "/contact",
+  PRIVACY: "/privacy",
+  TERMS: "/terms",
 };
 
 // Storage Keys
 export const STORAGE_KEYS = {
-  ACCESS_TOKEN: "access_token",
-  REFRESH_TOKEN: "refresh_token",
-  USER: "user",
-  DARK_MODE: "darkMode",
-  WALLET_ADDRESS: "wallet_address",
+  ACCESS_TOKEN: "bg_access_token",
+  REFRESH_TOKEN: "bg_refresh_token",
+  USER: "bg_user",
+  DARK_MODE: "bg_dark_mode",
 };
 
-// UI Constants
-export const THEME = {
-  COLORS: {
-    PRIMARY: "indigo",
-    SECONDARY: "gray",
-    SUCCESS: "green",
-    ERROR: "red",
-    WARNING: "yellow",
-  },
-};
+// Domain enums - kept in sync with code/backend/src/models/portfolio.py and user.py
+export const PORTFOLIO_TYPES = [
+  { value: "personal", label: "Personal" },
+  { value: "retirement", label: "Retirement" },
+  { value: "business", label: "Business" },
+  { value: "trust", label: "Trust" },
+  { value: "managed", label: "Managed" },
+];
 
-// Pagination
-export const PAGINATION = {
-  DEFAULT_PAGE_SIZE: 10,
-  PAGE_SIZE_OPTIONS: [10, 25, 50, 100],
-};
+export const RISK_LEVELS = [
+  { value: "very_low", label: "Very Low" },
+  { value: "low", label: "Low" },
+  { value: "moderate", label: "Moderate" },
+  { value: "high", label: "High" },
+  { value: "very_high", label: "Very High" },
+];
+
+export const ASSET_TYPES = [
+  { value: "stock", label: "Stock" },
+  { value: "bond", label: "Bond" },
+  { value: "cryptocurrency", label: "Cryptocurrency" },
+  { value: "etf", label: "ETF" },
+  { value: "mutual_fund", label: "Mutual Fund" },
+  { value: "commodity", label: "Commodity" },
+  { value: "forex", label: "Forex" },
+  { value: "derivative", label: "Derivative" },
+  { value: "real_estate", label: "Real Estate" },
+  { value: "alternative", label: "Alternative" },
+];
+
+export const TRANSACTION_TYPES = [
+  { value: "buy", label: "Buy" },
+  { value: "sell", label: "Sell" },
+  { value: "deposit", label: "Deposit" },
+  { value: "withdrawal", label: "Withdrawal" },
+  { value: "dividend", label: "Dividend" },
+  { value: "interest", label: "Interest" },
+  { value: "fee", label: "Fee" },
+  { value: "transfer_in", label: "Transfer In" },
+  { value: "transfer_out", label: "Transfer Out" },
+  { value: "split", label: "Split" },
+  { value: "merger", label: "Merger" },
+];
+
+// Currency / number formatting
+export const DEFAULT_CURRENCY = "USD";
 
 // Error Messages
 export const ERROR_MESSAGES = {
-  NETWORK_ERROR: "Network error. Please check your connection.",
-  AUTH_REQUIRED: "Authentication required. Please login.",
-  INVALID_CREDENTIALS: "Invalid credentials.",
-  SERVER_ERROR: "Server error. Please try again later.",
-  VALIDATION_ERROR: "Validation error. Please check your input.",
-};
-
-// Success Messages
-export const SUCCESS_MESSAGES = {
-  LOGIN: "Successfully logged in!",
-  REGISTER: "Successfully registered!",
-  LOGOUT: "Successfully logged out!",
-  UPDATE: "Successfully updated!",
-  DELETE: "Successfully deleted!",
-  CREATE: "Successfully created!",
+  NETWORK_ERROR: "Network error. Please check your connection and try again.",
+  AUTH_REQUIRED: "Please sign in to continue.",
+  INVALID_CREDENTIALS: "Invalid email or password.",
+  SERVER_ERROR: "Something went wrong. Please try again later.",
+  VALIDATION_ERROR: "Please check your input and try again.",
 };

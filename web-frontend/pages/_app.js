@@ -1,44 +1,21 @@
+import { useEffect } from "react";
 import "../styles/globals.css";
-import { useEffect, useState } from "react";
-import { WalletProvider } from "../components/WalletProvider";
+import { ThemeProvider } from "../context/ThemeContext";
+import { AuthProvider } from "../context/AuthContext";
+import { ToastProvider } from "../context/ToastContext";
 
-function MyApp({ Component, pageProps }) {
-  const [darkMode, setDarkMode] = useState(false);
-
+export default function App({ Component, pageProps }) {
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    setDarkMode(isDark);
+    document.documentElement.classList.add("scroll-smooth");
   }, []);
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    try {
-      localStorage.setItem("darkMode", String(darkMode));
-    } catch (e) {
-      console.warn(e);
-    }
-  }, [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode((prev) => !prev);
-
   return (
-    <WalletProvider>
-      <div
-        className="min-h-screen transition-colors duration-300"
-        suppressHydrationWarning
-      >
-        <Component
-          {...pageProps}
-          darkMode={darkMode}
-          toggleDarkMode={toggleDarkMode}
-        />
-      </div>
-    </WalletProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Component {...pageProps} />
+        </AuthProvider>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
-
-export default MyApp;

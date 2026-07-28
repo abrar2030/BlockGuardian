@@ -36,7 +36,8 @@ SUMMARY_FILE="${AGGREGATED_LOG_DIR}/log_summary_${TIMESTAMP}.md"
 log_message() {
   local message="$1"
   local level="${2:-INFO}"
-  local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+  local timestamp
+  timestamp=$(date +"%Y-%m-%d %H:%M:%S")
   echo -e "[$timestamp] [$level] $message" | tee -a "$AGGREGATED_LOG_FILE"
 }
 
@@ -64,8 +65,11 @@ collect_component_logs() {
   local log_files_count=0
   local total_size="0B"
 
-  # Find log files and process them
-  find "$component_dir" -name "$log_pattern" -type f -mtime -"$max_age_days" -print0 | while IFS= read -r -d $'\0' log_file; do
+  # Find log files and process them. Process substitution (`< <(...)`)
+  # rather than piping into the while loop (`find ... | while ...`) is
+  # required here: a piped while loop runs in a subshell, so log_files_count
+  # would be lost the moment the loop ends instead of being visible below.
+  while IFS= read -r -d $'\0' log_file; do
     local base_name
     base_name=$(basename "$log_file")
     cp "$log_file" "${component_log_dir}/${base_name}"
@@ -74,8 +78,12 @@ collect_component_logs() {
     echo -e "\n\n========== ${component}: ${base_name} ==========\n" >> "$AGGREGATED_LOG_FILE"
     cat "$log_file" >> "$AGGREGATED_LOG_FILE"
 
-    ((log_files_count++))
-  done
+    # NOTE: `log_files_count=$((log_files_count + 1))` rather than
+    # `((log_files_count++))` -- under `set -e`, the post-increment form
+    # evaluates to the *pre*-increment value, so incrementing from 0 is
+    # arithmetic 0 (shell "false") and kills the whole script right here.
+    log_files_count=$((log_files_count + 1))
+  done < <(find "$component_dir" -name "$log_pattern" -type f -mtime -"$max_age_days" -print0)
 
   if [ "$log_files_count" -eq 0 ]; then
     log_message "No log files found for ${component} matching pattern ${log_pattern}" "WARNING"
@@ -129,7 +137,7 @@ collect_docker_logs() {
     echo -e "\n\n========== Docker Container: ${container} ==========\n" >> "$AGGREGATED_LOG_FILE"
     cat "${docker_log_dir}/${container}.log" >> "$AGGREGATED_LOG_FILE"
 
-    ((container_count++))
+    container_count=$((container_count + 1))
   done
 
   local total_size
@@ -200,10 +208,10 @@ analyze_logs() {
   local exception_count
   local failure_count
 
-  error_count=$(grep -c -i "error" "$AGGREGATED_LOG_FILE" || echo 0)
-  warning_count=$(grep -c -i "warn" "$AGGREGATED_LOG_FILE" || echo 0)
-  exception_count=$(grep -c -i "exception" "$AGGREGATED_LOG_FILE" || echo 0)
-  failure_count=$(grep -c -i "fail" "$AGGREGATED_LOG_FILE" || echo 0)
+  error_count=$(grep -c -i "error" "$AGGREGATED_LOG_FILE" || true)
+  warning_count=$(grep -c -i "warn" "$AGGREGATED_LOG_FILE" || true)
+  exception_count=$(grep -c -i "exception" "$AGGREGATED_LOG_FILE" || true)
+  failure_count=$(grep -c -i "fail" "$AGGREGATED_LOG_FILE" || true)
 
   # Add analysis to summary
   echo "" >> "$SUMMARY_FILE"
@@ -243,18 +251,21 @@ aggregate_logs() {
   # Define components and their log directories/patterns
   local components=(
     "Backend:${PROJECT_ROOT}/code/backend:*.log"
-    "Blockchain:${PROJECT_ROOT}/blockchain:*.log"
+    "Blockchain:${PROJECT_ROOT}/code/blockchain:*.log"
     "Web-Frontend:${PROJECT_ROOT}/web-frontend:*.log"
     "Mobile-Frontend:${PROJECT_ROOT}/mobile-frontend:*.log"
   )
 
   for component_info in "${components[@]}"; do
     IFS=':' read -r component_name component_dir log_pattern <<< "$component_info"
-    collect_component_logs "$component_name" "$component_dir" "$log_pattern"
+    # collect_component_logs legitimately returns 1 when a component simply
+    # has no log files yet (already handled/reported internally) - as a bare
+    # statement under `set -e` that would otherwise kill the whole script.
+    collect_component_logs "$component_name" "$component_dir" "$log_pattern" || true
   done
 
   echo -e "${BLUE}Collecting Docker container logs...${NC}"
-  collect_docker_logs
+  collect_docker_logs || true
 
   echo -e "${BLUE}Collecting system logs...${NC}"
   collect_system_logs

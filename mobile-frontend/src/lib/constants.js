@@ -1,188 +1,99 @@
-export const NETWORKS = {
-  ETHEREUM: {
-    id: 1,
-    name: "Ethereum Mainnet",
-    symbol: "ETH",
-    rpcUrl:
-      process.env.EXPO_PUBLIC_ETH_RPC_URL || "https://ethereum.publicnode.com",
-    blockExplorerUrl: "https://etherscan.io",
-  },
-  POLYGON: {
-    id: 137,
-    name: "Polygon Mainnet",
-    symbol: "MATIC",
-    rpcUrl:
-      process.env.EXPO_PUBLIC_POLYGON_RPC_URL || "https://polygon-rpc.com",
-    blockExplorerUrl: "https://polygonscan.com",
-  },
-  ARBITRUM: {
-    id: 42161,
-    name: "Arbitrum One",
-    symbol: "ETH",
-    rpcUrl:
-      process.env.EXPO_PUBLIC_ARBITRUM_RPC_URL ||
-      "https://arb1.arbitrum.io/rpc",
-    blockExplorerUrl: "https://arbiscan.io",
-  },
-  OPTIMISM: {
-    id: 10,
-    name: "Optimism",
-    symbol: "ETH",
-    rpcUrl:
-      process.env.EXPO_PUBLIC_OPTIMISM_RPC_URL || "https://mainnet.optimism.io",
-    blockExplorerUrl: "https://optimistic.etherscan.io",
-  },
-  BSC: {
-    id: 56,
-    name: "BNB Smart Chain",
-    symbol: "BNB",
-    rpcUrl:
-      process.env.EXPO_PUBLIC_BSC_RPC_URL || "https://bsc-dataseed.binance.org",
-    blockExplorerUrl: "https://bscscan.com",
-  },
-  GOERLI: {
-    id: 5,
-    name: "Goerli Testnet",
-    symbol: "ETH",
-    rpcUrl: "https://goerli.infura.io/v3/",
-    blockExplorerUrl: "https://goerli.etherscan.io",
-    isTestnet: true,
-  },
-  SEPOLIA: {
-    id: 11155111,
-    name: "Sepolia Testnet",
-    symbol: "ETH",
-    rpcUrl: "https://sepolia.infura.io/v3/",
-    blockExplorerUrl: "https://sepolia.etherscan.io",
-    isTestnet: true,
-  },
-  MUMBAI: {
-    id: 80001,
-    name: "Mumbai Testnet",
-    symbol: "MATIC",
-    rpcUrl: "https://rpc-mumbai.maticvigil.com",
-    blockExplorerUrl: "https://mumbai.polygonscan.com",
-    isTestnet: true,
-  },
-};
+// Application constants - matched 1:1 to code/backend/src/routes
 
-export const DEFAULT_NETWORK = NETWORKS.ETHEREUM;
-
-export const WALLET_CONNECT_CONFIG = {
-  projectId:
-    process.env.EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID ||
-    "demo-project-id-change-this",
-  metadata: {
-    name: process.env.EXPO_PUBLIC_APP_NAME || "BlockGuardian",
-    description: "Blockchain security and portfolio management",
-    url: process.env.EXPO_PUBLIC_APP_URL || "https://blockguardian.io",
-    icons: [
-      process.env.EXPO_PUBLIC_APP_ICON_URL ||
-        "https://blockguardian.io/icon.png",
-    ],
-  },
-};
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
+export const API_BASE_PATH = process.env.EXPO_PUBLIC_API_BASE_PATH || "/api";
 
 export const API_ENDPOINTS = {
   AUTH: {
-    LOGIN: "/auth/login",
     REGISTER: "/auth/register",
+    LOGIN: "/auth/login",
     LOGOUT: "/auth/logout",
     REFRESH: "/auth/refresh",
+    SETUP_MFA: "/auth/setup-mfa",
+    ENABLE_MFA: "/auth/enable-mfa",
+    DISABLE_MFA: "/auth/disable-mfa",
+    CHANGE_PASSWORD: "/auth/change-password",
     PROFILE: "/auth/profile",
-  },
-  USER: {
-    PROFILE: "/user/profile",
-    UPDATE: "/user/update",
-    SETTINGS: "/user/settings",
+    VERIFY_TOKEN: "/auth/verify-token",
   },
   PORTFOLIO: {
-    LIST: "/portfolios",
-    DETAILS: "/portfolios",
-    CREATE: "/portfolios",
-    UPDATE: "/portfolios",
-    DELETE: "/portfolios",
-    ASSETS: "/portfolios/assets",
-    PERFORMANCE: "/portfolios/performance",
+    LIST: "/portfolios/",
+    CREATE: "/portfolios/",
+    DETAIL: (id) => `/portfolios/${id}`,
+    UPDATE: (id) => `/portfolios/${id}`,
+    DELETE: (id) => `/portfolios/${id}`,
+    HOLDINGS: (id) => `/portfolios/${id}/holdings`,
+    TRANSACTIONS: (id) => `/portfolios/${id}/transactions`,
+    CANCEL_TRANSACTION: (id, txId) =>
+      `/portfolios/${id}/transactions/${txId}/cancel`,
+    BUY: (id) => `/portfolios/${id}/buy`,
+    SELL: (id) => `/portfolios/${id}/sell`,
+    PERFORMANCE: (id) => `/portfolios/${id}/performance`,
+    ALLOCATION: (id) => `/portfolios/${id}/allocation`,
+    RISK: (id) => `/portfolios/${id}/risk`,
   },
-  MARKET: {
-    PRICES: "/market/prices",
-    TRENDS: "/market/trends",
-    DETAILS: "/market",
-    SEARCH: "/market/search",
-    CHART: "/market/chart",
+  ASSETS: {
+    LIST: "/portfolios/assets",
+    SEARCH: "/portfolios/assets/search",
   },
-  BLOCKCHAIN: {
-    TRANSACTIONS: "/blockchain/transactions",
-    BALANCE: "/blockchain/balance",
-    EXPLORER: "/blockchain/explorer",
-    ADDRESS_INFO: "/blockchain/address",
-    TX_INFO: "/blockchain/tx",
-  },
-  AI: {
-    RECOMMENDATIONS: "/ai/recommendations",
-    RISK_ANALYSIS: "/ai/risk-analysis",
-    SENTIMENT: "/ai/sentiment",
-    PREDICTIONS: "/ai/predictions",
-    OPTIMIZE: "/ai/optimize",
-  },
-  SECURITY: {
-    SCAN: "/security/scan",
-    ALERTS: "/security/alerts",
-    REPORT: "/security/report",
-    VERIFY: "/security/verify",
-    CHECK_TX: "/security/check-transaction",
-  },
-  ADMIN: {
-    USERS: "/admin/users",
-    STATS: "/admin/stats",
-    SETTINGS: "/admin/settings",
-    AUDIT_LOGS: "/admin/audit-logs",
-  },
+  HEALTH: "/health",
 };
 
 export const STORAGE_KEYS = {
-  AUTH_TOKEN: "blockguardian_auth_token",
-  USER_PROFILE: "blockguardian_user_profile",
-  THEME: "blockguardian_theme",
-  NETWORK: "blockguardian_network",
-  RECENT_ADDRESSES: "blockguardian_recent_addresses",
-  SETTINGS: "blockguardian_settings",
-  WALLET_ADDRESS: "blockguardian_wallet_address",
-  PORTFOLIO_CACHE: "blockguardian_portfolio_cache",
+  ACCESS_TOKEN: "bg_access_token",
+  REFRESH_TOKEN: "bg_refresh_token",
+  USER: "bg_user",
 };
 
-export const APP_CONFIG = {
-  DEBUG_MODE: process.env.EXPO_PUBLIC_DEBUG_MODE === "true",
-  ENABLE_ANALYTICS: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === "true",
-  ENABLE_CRASH_REPORTING:
-    process.env.EXPO_PUBLIC_ENABLE_CRASH_REPORTING === "true",
-  API_TIMEOUT: 30000,
-  CACHE_DURATION: 300000,
-  POLLING_INTERVAL: 60000,
-};
+export const PORTFOLIO_TYPES = [
+  { value: "personal", label: "Personal" },
+  { value: "retirement", label: "Retirement" },
+  { value: "business", label: "Business" },
+  { value: "trust", label: "Trust" },
+  { value: "managed", label: "Managed" },
+];
 
-export const RISK_LEVELS = {
-  LOW: "low",
-  MEDIUM: "medium",
-  HIGH: "high",
-  CRITICAL: "critical",
-};
+export const RISK_LEVELS = [
+  { value: "very_low", label: "Very Low" },
+  { value: "low", label: "Low" },
+  { value: "moderate", label: "Moderate" },
+  { value: "high", label: "High" },
+  { value: "very_high", label: "Very High" },
+];
 
-export const RISK_COLORS = {
-  [RISK_LEVELS.LOW]: "#10b981",
-  [RISK_LEVELS.MEDIUM]: "#f59e0b",
-  [RISK_LEVELS.HIGH]: "#f97316",
-  [RISK_LEVELS.CRITICAL]: "#ef4444",
-};
+export const ASSET_TYPES = [
+  { value: "stock", label: "Stock" },
+  { value: "bond", label: "Bond" },
+  { value: "cryptocurrency", label: "Cryptocurrency" },
+  { value: "etf", label: "ETF" },
+  { value: "mutual_fund", label: "Mutual Fund" },
+  { value: "commodity", label: "Commodity" },
+  { value: "forex", label: "Forex" },
+  { value: "derivative", label: "Derivative" },
+  { value: "real_estate", label: "Real Estate" },
+  { value: "alternative", label: "Alternative" },
+];
 
-export default {
-  NETWORKS,
-  DEFAULT_NETWORK,
-  WALLET_CONNECT_CONFIG,
-  API_ENDPOINTS,
-  STORAGE_KEYS,
-  APP_CONFIG,
-  RISK_LEVELS,
-  RISK_COLORS,
+export const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"];
+
+export const COUNTRIES = [
+  { value: "US", label: "United States" },
+  { value: "CA", label: "Canada" },
+  { value: "GB", label: "United Kingdom" },
+  { value: "AU", label: "Australia" },
+  { value: "DE", label: "Germany" },
+  { value: "FR", label: "France" },
+  { value: "IN", label: "India" },
+  { value: "PK", label: "Pakistan" },
+  { value: "AE", label: "United Arab Emirates" },
+  { value: "SG", label: "Singapore" },
+  { value: "JP", label: "Japan" },
+  { value: "BR", label: "Brazil" },
+  { value: "OTHER", label: "Other" },
+];
+
+export const ERROR_MESSAGES = {
+  NETWORK_ERROR: "Network error. Please check your connection and try again.",
+  SERVER_ERROR: "Something went wrong. Please try again later.",
 };

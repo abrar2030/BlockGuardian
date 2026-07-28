@@ -1,80 +1,156 @@
 # BlockGuardian Automation Scripts
 
-This package contains a set of automation scripts designed to enhance the development workflow, testing, and deployment processes for the BlockGuardian repository. These scripts address various repetitive and manual tasks identified during a comprehensive review of the repository.
+Shell scripts that automate setup, running, building, linting, testing, deploying, and
+monitoring the BlockGuardian project across its four components:
 
-## Contents
+- **Backend** — Flask API at `code/backend`
+- **Blockchain** — Hardhat/Solidity contracts at `code/blockchain`
+- **Web Frontend** — Next.js app at `web-frontend`
+- **Mobile Frontend** — Expo/React Native app at `mobile-frontend`
 
-1. **Unified Testing Script** (`run_unified_tests.sh`): Automates testing across all components of the BlockGuardian project, generating consolidated test reports.
+All scripts resolve the project root from their own location (not the caller's current
+directory), so they can be run from anywhere, e.g. `./scripts/health_check.sh` or
+`bash /path/to/BlockGuardian/scripts/health_check.sh`.
 
-2. **Health Check Script** (`health_check.sh`): Monitors the health of all running BlockGuardian components and provides a consolidated status report.
+## Setup
 
-3. **Log Aggregation Script** (`log_aggregator.sh`): Collects and aggregates logs from all BlockGuardian components into a centralized location for easier monitoring and troubleshooting.
+Make the scripts executable once after cloning (git preserves this afterwards):
 
-4. **Deployment Automation Script** (`deploy_automation.sh`): Automates the deployment process for BlockGuardian components, handling building, testing, and deploying to various environments.
+```bash
+chmod +x scripts/*.sh
+```
 
-## Installation
+### `setup_blockguardian_env.sh`
 
-1. Extract the contents of this zip file to the root directory of your BlockGuardian repository.
-2. Make the scripts executable:
-   ```bash
-   chmod +x scripts/*.sh
-   ```
+Installs system dependencies (Python 3, pip, venv, Node.js if missing) and sets up
+every component: creates the backend's virtual environment and installs
+`requirements.txt`, and runs `npm install` for the blockchain, web-frontend, and
+mobile-frontend projects.
 
-## Usage
+```bash
+./scripts/setup_blockguardian_env.sh
+```
 
-### Unified Testing
+Uses `sudo` for system package installs only when not already running as root and
+`sudo` is actually available (so it also works unmodified inside root-only containers).
 
-Run tests across all components and generate a consolidated report:
+## Running the app
+
+### `run_blockguardian.sh`
+
+Starts the backend, blockchain node, and web frontend together, and keeps running in
+the foreground until you press Ctrl+C, at which point it stops all three cleanly.
+
+```bash
+./scripts/run_blockguardian.sh
+```
+
+- Backend: http://localhost:5000
+- Web frontend: http://localhost:3000
+- Blockchain node (JSON-RPC): http://localhost:8545
+
+## Build & clean
+
+### `build_all.sh`
+
+Builds every component (backend dependency install, Hardhat contract compilation,
+`next build` for web-frontend, and an Expo web export for mobile-frontend), streaming
+each component's build output directly to the console.
+
+```bash
+./scripts/build_all.sh
+```
+
+### `clean_all.sh`
+
+Removes build artifacts, caches, and dependency directories (`node_modules`, `venv`,
+`.next`, Hardhat's `cache`/`artifacts`, `__pycache__`, etc.) for every component.
+
+```bash
+./scripts/clean_all.sh
+```
+
+## Quality checks
+
+### `lint-all.sh`
+
+Runs formatters and linters across every component: Black/isort/flake8/pylint for
+Python, Prettier/ESLint for JavaScript/TypeScript, Prettier/solhint for Solidity,
+yamllint (or a basic Python-based fallback) for YAML, and `terraform fmt`/`validate`
+for infrastructure code. Also normalizes trailing whitespace and end-of-file newlines
+across the whole repo.
+
+```bash
+./scripts/lint-all.sh
+```
+
+Python lint tools install into a dedicated virtual environment at `.lint-venv/`
+(created automatically) rather than the system Python, so this works cleanly on
+modern Debian/Ubuntu systems without needing `--break-system-packages`.
+
+### `run_unified_tests.sh`
+
+Runs each component's test suite (pytest for the backend, Hardhat tests for the
+blockchain, Jest for both frontends) and writes a consolidated pass/fail report.
 
 ```bash
 ./scripts/run_unified_tests.sh
 ```
 
-The test results will be saved in the `test-results` directory.
+Results are saved in `test-results/` (per-component logs plus `test_summary_*.md`).
 
-### Health Check
+## Operations
 
-Check the health of all running BlockGuardian components:
+### `health_check.sh`
+
+Checks whether each component's expected port is up and responding correctly
+(backend `/health` endpoint, blockchain JSON-RPC, web frontend HTTP 200), plus
+database, Redis, Docker containers, and disk space. Writes a Markdown summary table.
 
 ```bash
 ./scripts/health_check.sh
 ```
 
-The health check results will be saved in the `health-checks` directory.
+Results are saved in `health-checks/`. Exits non-zero if any service is unhealthy.
 
-### Log Aggregation
+### `log_aggregator.sh`
 
-Collect and aggregate logs from all components:
+Collects each component's `*.log` files, Docker container logs (if any), and basic
+system logs into one aggregated file, then reports counts of errors/warnings/
+exceptions/failures found across them.
 
 ```bash
 ./scripts/log_aggregator.sh
 ```
 
-The aggregated logs will be saved in the `logs/aggregated` directory.
+Results are saved in `logs/aggregated/`.
 
-### Deployment Automation
+### `deploy_automation.sh`
 
-Deploy BlockGuardian components to various environments:
+Runs tests, builds, and (simulated) deploys for one or all components against a
+target environment.
 
 ```bash
-./scripts/deploy_automation.sh --environment [development|staging|production] --component [all|backend|web-frontend|mobile-frontend|blockchain]
+./scripts/deploy_automation.sh --environment <development|staging|production> [options]
 ```
 
 Options:
 
-- `-e, --environment`: Specify deployment environment (development, staging, production)
-- `-c, --component`: Deploy specific component (backend, web-frontend, mobile-frontend, blockchain)
-- `-s, --skip-tests`: Skip running tests before deployment
-- `-h, --help`: Show help message
+- `-e, --environment` _(required)_ — `development`, `staging`, or `production`
+- `-c, --component` — `all` (default), `backend`, `web-frontend`, `mobile-frontend`, or `blockchain`
+- `-s, --skip-tests` — skip the test step before building/deploying
+- `-h, --help` — show usage
 
-## Customization
+Results are saved in `deployment-logs/` (per-component logs plus
+`deployment_summary_*.md`). The actual deploy step for each component is a logged
+placeholder (e.g. where an `aws s3 sync` or `docker push` would go) rather than a
+real push to infrastructure — wire in real deployment commands for your environment
+before using this in production.
 
-Each script is designed to be modular and easily customizable. You can modify the scripts to fit your specific requirements by editing the relevant sections.
+## Notes
 
-## Documentation
-
-For more detailed information about each script, please refer to the comments within the script files themselves or the validation report included in this package.
-
-## License
-
-These scripts are provided under the same license as the BlockGuardian repository.
+- Every script uses `set -euo pipefail` and is written to run its full set of checks
+  even when individual components fail, reporting a complete summary at the end
+  rather than stopping partway through.
+- Scripts that install or modify dependencies (`setup_blockguardian_env.sh`,
+  `build_all.sh`, `lint-all.sh`) are safe to re-run; they skip work that's already done.

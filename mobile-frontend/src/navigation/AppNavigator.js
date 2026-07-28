@@ -1,72 +1,110 @@
-import { NavigationContainer } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import AdminScreen from "../screens/AdminScreen";
-import AIRecommendationsScreen from "../screens/AIRecommendationsScreen";
-import BlockchainExplorerScreen from "../screens/BlockchainExplorerScreen";
-import DashboardScreen from "../screens/DashboardScreen";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+
+import HomeScreen from "../screens/HomeScreen";
 import LoginScreen from "../screens/LoginScreen";
-import MarketAnalysisScreen from "../screens/MarketAnalysisScreen";
-import PortfolioScreen from "../screens/PortfolioScreen";
-import SecurityCheckScreen from "../screens/SecurityCheckScreen";
+import RegisterScreen from "../screens/RegisterScreen";
+import DashboardScreen from "../screens/DashboardScreen";
+import PortfoliosScreen from "../screens/PortfoliosScreen";
+import PortfolioDetailScreen from "../screens/PortfolioDetailScreen";
+import MarketsScreen from "../screens/MarketsScreen";
+import AccountScreen from "../screens/AccountScreen";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
-const AppNavigator = () => {
+const TAB_ICONS = {
+  Dashboard: "grid-outline",
+  Portfolios: "briefcase-outline",
+  Markets: "bar-chart-outline",
+  Account: "person-outline",
+};
+
+const navTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: "#05070d",
+    card: "#0d1526",
+    text: "#f8fafc",
+    border: "#1f2937",
+    primary: "#6366f1",
+  },
+};
+
+function MainTabs() {
   return (
-    <NavigationContainer>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: "#818cf8",
+        tabBarInactiveTintColor: "#64748b",
+        tabBarStyle: {
+          backgroundColor: "#0d1526",
+          borderTopColor: "#1f2937",
+          height: 64,
+          paddingBottom: 10,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarIcon: ({ color, size }) => (
+          <Ionicons
+            name={TAB_ICONS[route.name]}
+            size={size - 2}
+            color={color}
+          />
+        ),
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Portfolios" component={PortfoliosScreen} />
+      <Tab.Screen name="Markets" component={MarketsScreen} />
+      <Tab.Screen name="Account" component={AccountScreen} />
+    </Tab.Navigator>
+  );
+}
+
+export default function AppNavigator() {
+  return (
+    <NavigationContainer theme={navTheme}>
       <Stack.Navigator
-        initialRouteName="Login"
+        initialRouteName="Home"
         screenOptions={{
-          headerStyle: {
-            backgroundColor: "#0f172a",
-          },
-          headerTintColor: "#ffffff",
-          headerTitleStyle: {
-            fontWeight: "bold",
-          },
-          headerBackTitleVisible: false,
-          contentStyle: { backgroundColor: "#0f172a" },
+          headerStyle: { backgroundColor: "#0d1526" },
+          headerTintColor: "#f8fafc",
+          headerTitleStyle: { fontWeight: "700" },
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: "#05070d" },
         }}
       >
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="Login"
           component={LoginScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="Dashboard"
-          component={DashboardScreen}
+          name="Register"
+          component={RegisterScreen}
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="Portfolio" component={PortfolioScreen} />
         <Stack.Screen
-          name="MarketAnalysis"
-          component={MarketAnalysisScreen}
-          options={{ title: "Market Analysis" }}
+          name="Main"
+          component={MainTabs}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="BlockchainExplorer"
-          component={BlockchainExplorerScreen}
-          options={{ title: "Blockchain Explorer" }}
-        />
-        <Stack.Screen
-          name="AIRecommendations"
-          component={AIRecommendationsScreen}
-          options={{ title: "AI Recommendations" }}
-        />
-        <Stack.Screen
-          name="SecurityCheck"
-          component={SecurityCheckScreen}
-          options={{ title: "Security Check" }}
-        />
-        <Stack.Screen
-          name="Admin"
-          component={AdminScreen}
-          options={{ title: "Admin Panel" }}
+          name="PortfolioDetail"
+          component={PortfolioDetailScreen}
+          options={{ title: "Portfolio" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
   );
-};
-
-export default AppNavigator;
+}

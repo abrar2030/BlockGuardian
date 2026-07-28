@@ -1,43 +1,71 @@
 # BlockGuardian Backend Dockerfile
-# Multi-stage build for minimal, secure production image
+# Multi-stage build for the Flask backend at code/backend.
+#
+# Build context must be the repository root (not infrastructure/), since the
+# backend source lives at code/backend, a sibling of infrastructure/:
+#   docker build -f infrastructure/docker/Dockerfile.backend .
+# (docker-compose.yml in this directory is already configured this way.)
 
-# Stage 1: Build
-FROM node:20-alpine AS builder
+# Stage 1: Build - install Python dependencies
+FROM python:3.12-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
-# Copy package files first for layer caching
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+# gcc is kept here (discarded in the final stage) in case any transitive
+# dependency needs to compile from source on an architecture without a
+# prebuilt wheel; most of requirements.txt (psycopg2-binary, cryptography,
+# bcrypt, etc.) ships manylinux wheels so this is a cheap safety net rather
+# than a hard requirement.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+COPY code/backend/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Stage 2: Production image
-FROM node:20-alpine AS production
+FROM python:3.12-slim AS production
 
-# Install dumb-init for proper PID 1 signal handling
-RUN apk add --no-cache dumb-init
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 10001 -S appgroup && \
-    adduser -u 10001 -S appuser -G appgroup
+RUN groupadd --gid 10001 --system appgroup && \
+    useradd --uid 10001 --system --gid appgroup --no-create-home appuser
 
 WORKDIR /app
 
-# Copy only production dependencies and built app
-COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
-COPY --from=builder --chown=appuser:appgroup /app .
+# Copy installed Python packages from the builder stage
+COPY --from=builder /root/.local /home/appuser/.local
 
-# Create required writable directories
+# Copy application source (only what's needed at runtime - no tests/, no venv/)
+COPY --chown=appuser:appgroup code/backend/src ./src
+COPY --chown=appuser:appgroup code/backend/requirements.txt .
+
+ENV PATH=/home/appuser/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=5000
+
+# Writable directories the app needs at runtime (matches src/main.py's log
+# setup and the tmpfs mounts used in docker-compose.yml)
 RUN mkdir -p /var/log/app /tmp && \
-    chown -R appuser:appgroup /var/log/app /tmp
+    chown -R appuser:appgroup /app /var/log/app /tmp
 
 USER appuser
 
-EXPOSE 8080 9090
+EXPOSE 5000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health/live || exit 1
+# The Flask app only registers a single health route: GET /health
+# (see code/backend/src/main.py). There is no /health/live, /health/ready,
+# or /health/startup route - a previous version of this Dockerfile checked
+# a path that doesn't exist, which would have made the container perpetually
+# report unhealthy.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["node", "src/server.js"]
+# gunicorn is already a pinned dependency in requirements.txt. main.py
+# exposes a module-level `app = create_app()`, so `src.main:app` is a valid
+# WSGI target directly - no separate wsgi.py entrypoint needed.
+CMD ["gunicorn", "--workers=4", "--bind=0.0.0.0:5000", "--access-logfile=-", "--error-logfile=-", "--timeout=60", "src.main:app"]
