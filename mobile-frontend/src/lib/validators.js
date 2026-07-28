@@ -17,7 +17,11 @@ export function validateUsername(username) {
 }
 
 export const PASSWORD_RULES = [
-  { key: "length", label: "At least 12 characters", test: (v) => v.length >= 12 },
+  {
+    key: "length",
+    label: "At least 12 characters",
+    test: (v) => v.length >= 12,
+  },
   { key: "upper", label: "One uppercase letter", test: (v) => /[A-Z]/.test(v) },
   { key: "lower", label: "One lowercase letter", test: (v) => /[a-z]/.test(v) },
   { key: "digit", label: "One number", test: (v) => /\d/.test(v) },
@@ -45,7 +49,12 @@ export function validateRequired(value, label = "This field") {
 
 export function validatePositiveNumber(value, label = "Value") {
   const num = Number(value);
-  if (value === "" || value === null || value === undefined || Number.isNaN(num)) {
+  if (
+    value === "" ||
+    value === null ||
+    value === undefined ||
+    Number.isNaN(num)
+  ) {
     return `${label} must be a number`;
   }
   if (num <= 0) return `${label} must be greater than zero`;

@@ -72,5 +72,8 @@ export function formatLabel(value) {
 }
 
 export function initials(firstName = "", lastName = "") {
-  return `${(firstName || "").charAt(0)}${(lastName || "").charAt(0)}`.toUpperCase() || "U";
+  return (
+    `${(firstName || "").charAt(0)}${(lastName || "").charAt(0)}`.toUpperCase() ||
+    "U"
+  );
 }

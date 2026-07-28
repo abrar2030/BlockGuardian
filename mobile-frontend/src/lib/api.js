@@ -4,7 +4,13 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_BASE_URL, API_BASE_PATH, API_ENDPOINTS, STORAGE_KEYS, ERROR_MESSAGES } from "./constants";
+import {
+  API_BASE_URL,
+  API_BASE_PATH,
+  API_ENDPOINTS,
+  STORAGE_KEYS,
+  ERROR_MESSAGES,
+} from "./constants";
 
 let accessToken = null;
 let refreshToken = null;
@@ -75,7 +81,10 @@ class ApiError extends Error {
   }
 }
 
-async function doFetch(path, { method = "GET", body, params, skipAuth = false, isRetry = false } = {}) {
+async function doFetch(
+  path,
+  { method = "GET", body, params, skipAuth = false, isRetry = false } = {},
+) {
   await hydrateTokens();
 
   let url = `${API_BASE_URL}${API_BASE_PATH}${path}`;
@@ -130,13 +139,15 @@ async function doFetch(path, { method = "GET", body, params, skipAuth = false, i
     } catch {
       await clearSession();
       onSessionExpired?.();
-      throw new ApiError("Your session has expired. Please sign in again.", 401);
+      throw new ApiError(
+        "Your session has expired. Please sign in again.",
+        401,
+      );
     }
   }
 
   if (!response.ok) {
-    const message =
-      data?.error || data?.message || ERROR_MESSAGES.SERVER_ERROR;
+    const message = data?.error || data?.message || ERROR_MESSAGES.SERVER_ERROR;
     throw new ApiError(message, response.status, data, data?.field);
   }
 
@@ -193,19 +204,24 @@ export const authAPI = {
       body: { current_password: currentPassword, new_password: newPassword },
     }),
 
-  setupMfa: async () => doFetch(API_ENDPOINTS.AUTH.SETUP_MFA, { method: "POST" }),
+  setupMfa: async () =>
+    doFetch(API_ENDPOINTS.AUTH.SETUP_MFA, { method: "POST" }),
 
   enableMfa: async (token) =>
     doFetch(API_ENDPOINTS.AUTH.ENABLE_MFA, { method: "POST", body: { token } }),
 
   disableMfa: async (password) =>
-    doFetch(API_ENDPOINTS.AUTH.DISABLE_MFA, { method: "POST", body: { password } }),
+    doFetch(API_ENDPOINTS.AUTH.DISABLE_MFA, {
+      method: "POST",
+      body: { password },
+    }),
 };
 
 // ---- Portfolios --------------------------------------------------------
 
 export const portfolioAPI = {
-  list: async (params = {}) => doFetch(API_ENDPOINTS.PORTFOLIO.LIST, { params }),
+  list: async (params = {}) =>
+    doFetch(API_ENDPOINTS.PORTFOLIO.LIST, { params }),
 
   get: async (id) => {
     const data = await doFetch(API_ENDPOINTS.PORTFOLIO.DETAIL(id));
@@ -228,7 +244,8 @@ export const portfolioAPI = {
     return data.portfolio;
   },
 
-  remove: async (id) => doFetch(API_ENDPOINTS.PORTFOLIO.DELETE(id), { method: "DELETE" }),
+  remove: async (id) =>
+    doFetch(API_ENDPOINTS.PORTFOLIO.DELETE(id), { method: "DELETE" }),
 
   holdings: async (id) => {
     const data = await doFetch(API_ENDPOINTS.PORTFOLIO.HOLDINGS(id));
@@ -239,7 +256,9 @@ export const portfolioAPI = {
     doFetch(API_ENDPOINTS.PORTFOLIO.TRANSACTIONS(id), { params }),
 
   cancelTransaction: async (id, txId) =>
-    doFetch(API_ENDPOINTS.PORTFOLIO.CANCEL_TRANSACTION(id, txId), { method: "POST" }),
+    doFetch(API_ENDPOINTS.PORTFOLIO.CANCEL_TRANSACTION(id, txId), {
+      method: "POST",
+    }),
 
   buy: async (id, { assetSymbol, quantity, price }) =>
     doFetch(API_ENDPOINTS.PORTFOLIO.BUY(id), {
