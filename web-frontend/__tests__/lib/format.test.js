@@ -11,8 +11,8 @@ describe("formatCurrency", () => {
     expect(formatCurrency(1234.5)).toBe("$1,234.50");
   });
 
-  it("returns an em dash for invalid input", () => {
-    expect(formatCurrency("not-a-number")).toBe("—");
+  it("returns a placeholder dash for invalid input", () => {
+    expect(formatCurrency("not-a-number")).toBe("-");
   });
 
   it("shows extra precision for sub-dollar values", () => {
@@ -41,8 +41,8 @@ describe("formatLabel", () => {
     expect(formatLabel("very_high")).toBe("Very High");
   });
 
-  it("returns an em dash for empty input", () => {
-    expect(formatLabel("")).toBe("—");
+  it("returns a placeholder dash for empty input", () => {
+    expect(formatLabel("")).toBe("-");
   });
 });
 

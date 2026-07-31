@@ -5,7 +5,7 @@ const VALUES = [
   {
     title: "Clarity over complexity",
     description:
-      "Investment data is presented plainly — real numbers, real positions, no jargon-heavy dashboards.",
+      "Investment data is presented plainly: real numbers, real positions, no jargon-heavy dashboards.",
   },
   {
     title: "Security by default",
@@ -28,9 +28,9 @@ export default function AboutPage() {
         </h1>
         <p className="mt-5 text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
           BlockGuardian is a portfolio management platform built for investors
-          who want a single, honest view of what they own — across stocks,
-          funds, and digital assets — with the risk monitoring tools usually
-          reserved for institutional desks.
+          who want a single, honest view of what they own (across stocks, funds,
+          and digital assets) with the risk monitoring tools usually reserved
+          for institutional desks.
         </p>
       </section>
 
@@ -57,7 +57,7 @@ export default function AboutPage() {
           <p className="mt-4 text-gray-500 dark:text-gray-400 leading-relaxed">
             Every portfolio you create tracks real transactions, computes live
             performance, allocation, and risk metrics, and flags positions that
-            breach the limits you set — no black-box predictions, just
+            breach the limits you set: no black-box predictions, just
             transparent math you can verify.
           </p>
         </div>

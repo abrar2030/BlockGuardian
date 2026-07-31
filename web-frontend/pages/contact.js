@@ -26,7 +26,7 @@ export default function ContactPage() {
 
     const subject = encodeURIComponent(`Message from ${form.name}`);
     const body = encodeURIComponent(
-      `${form.message}\n\n— ${form.name} (${form.email})`,
+      `${form.message}\n\n- ${form.name} (${form.email})`,
     );
     window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
   };

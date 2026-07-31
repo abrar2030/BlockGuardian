@@ -132,7 +132,7 @@ function LimitStat({ label, value }) {
       <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">
         {value !== undefined && value !== null
           ? `${(value * 100).toFixed(0)}%`
-          : "—"}
+          : "-"}
       </p>
     </div>
   );

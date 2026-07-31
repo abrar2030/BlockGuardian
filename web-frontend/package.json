@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx --fix",
+    "check:no-em-dash": "node scripts/check-no-em-dash.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test"

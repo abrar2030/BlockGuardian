@@ -4,7 +4,7 @@ import Card from "../components/ui/Card";
 const SECTIONS = [
   {
     title: "1. Information we collect",
-    body: "When you create a BlockGuardian account, we collect the information you provide directly — your name, email address, username, and optionally your phone number, country, and city. We also record portfolio, holding, and transaction data you create while using the platform.",
+    body: "When you create a BlockGuardian account, we collect the information you provide directly: your name, email address, username, and optionally your phone number, country, and city. We also record portfolio, holding, and transaction data you create while using the platform.",
   },
   {
     title: "2. How we use your information",
@@ -12,11 +12,11 @@ const SECTIONS = [
   },
   {
     title: "3. Data protection",
-    body: "Sensitive fields such as phone number and address are encrypted at rest. Passwords are never stored in plain text — they are hashed and salted. Session access is controlled with short-lived access tokens and longer-lived refresh tokens.",
+    body: "Sensitive fields such as phone number and address are encrypted at rest. Passwords are never stored in plain text; they are hashed and salted. Session access is controlled with short-lived access tokens and longer-lived refresh tokens.",
   },
   {
     title: "4. Two-factor authentication",
-    body: "You may optionally enable time-based one-time password (TOTP) two-factor authentication. Backup codes are shown once at setup time — store them securely, as we cannot recover them for you.",
+    body: "You may optionally enable time-based one-time password (TOTP) two-factor authentication. Backup codes are shown once at setup time, so store them securely, as we cannot recover them for you.",
   },
   {
     title: "5. Data sharing",

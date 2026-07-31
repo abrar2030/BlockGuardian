@@ -136,7 +136,7 @@ export default function MarketsPage() {
                         </Badge>
                       </td>
                       <td className="table-cell text-gray-500 dark:text-gray-400">
-                        {asset.exchange || "—"}
+                        {asset.exchange || "-"}
                       </td>
                       <td className="table-cell text-right font-medium">
                         {formatCurrency(asset.current_price, asset.currency)}

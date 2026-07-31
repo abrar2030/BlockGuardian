@@ -25,7 +25,7 @@ export default function AllocationChart({ byAssetType = {}, byAsset = {} }) {
   if (typeData.length === 0) {
     return (
       <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-10">
-        No positions yet — buy an asset to see your allocation breakdown.
+        No positions yet. Buy an asset to see your allocation breakdown.
       </p>
     );
   }

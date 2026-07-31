@@ -1,3 +1,18 @@
+/**
+ * NOTE (Tailwind CSS v4): this project uses the v4 CSS-first engine
+ * (`@import "tailwindcss";` in styles/globals.css via @tailwindcss/postcss).
+ * Since v4 no longer auto-loads a JS config file, the settings below are
+ * NOT applied to the build. They are kept only so editor tooling (e.g. the
+ * Tailwind CSS IntelliSense extension) can still offer autocomplete/hints
+ * for values that mirror the real, active configuration.
+ *
+ * The values actually used by the build live in styles/globals.css:
+ *   - dark mode strategy  -> `@custom-variant dark (&:where(.dark, .dark *));`
+ *   - fonts, brand colors, animations -> the `@theme { ... }` block
+ *
+ * If you need to change fonts, colors, shadows, or the dark mode strategy,
+ * edit styles/globals.css, not this file.
+ */
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -29,7 +44,6 @@ module.exports = {
         glow: "0 0 30px rgba(99,102,241,0.15)",
         "glow-lg": "0 0 60px rgba(99,102,241,0.2)",
       },
-      // NOTE: animations/keyframes are defined in globals.css @theme block (Tailwind v4 style)
     },
   },
   plugins: [],

@@ -92,7 +92,7 @@ const STEPS = [
     n: "02",
     title: "Build a portfolio",
     description:
-      "Set a risk profile, base currency, and starting cash — personal, retirement, or business.",
+      "Set a risk profile, base currency, and starting cash: personal, retirement, or business.",
   },
   {
     n: "03",
@@ -126,7 +126,7 @@ export default function HomePage() {
           <p className="mt-6 text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-balance">
             BlockGuardian brings real-time performance tracking, allocation
             breakdowns, and automated risk monitoring together in one clean
-            dashboard — for stocks, crypto, and everything in between.
+            dashboard for stocks, crypto, and everything in between.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             {isAuthenticated ? (

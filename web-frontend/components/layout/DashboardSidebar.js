@@ -103,7 +103,7 @@ export default function DashboardSidebar({ open, onClose }) {
               Demo environment
             </p>
             <p className="text-sm mt-1 leading-snug">
-              Trades execute against sample market data — no real funds are
+              Trades execute against sample market data. No real funds are
               involved.
             </p>
           </div>

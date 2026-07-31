@@ -1,6 +1,6 @@
 export function formatCurrency(value, currency = "USD") {
   const num = Number(value);
-  if (Number.isNaN(num)) return "—";
+  if (Number.isNaN(num)) return "-";
   try {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -14,7 +14,7 @@ export function formatCurrency(value, currency = "USD") {
 
 export function formatNumber(value, decimals = 2) {
   const num = Number(value);
-  if (Number.isNaN(num)) return "—";
+  if (Number.isNaN(num)) return "-";
   return new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: decimals,
@@ -23,14 +23,14 @@ export function formatNumber(value, decimals = 2) {
 
 export function formatPercent(value, decimals = 2) {
   const num = Number(value);
-  if (Number.isNaN(num)) return "—";
+  if (Number.isNaN(num)) return "-";
   return `${num >= 0 ? "+" : ""}${num.toFixed(decimals)}%`;
 }
 
 export function formatDate(value, opts = {}) {
-  if (!value) return "—";
+  if (!value) return "-";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
@@ -40,9 +40,9 @@ export function formatDate(value, opts = {}) {
 }
 
 export function formatDateTime(value) {
-  if (!value) return "—";
+  if (!value) return "-";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
@@ -53,7 +53,7 @@ export function formatDateTime(value) {
 }
 
 export function formatLabel(value) {
-  if (!value) return "—";
+  if (!value) return "-";
   return String(value)
     .split("_")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

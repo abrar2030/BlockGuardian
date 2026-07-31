@@ -4,7 +4,7 @@ import Footer from "./Footer";
 
 export default function PublicLayout({
   children,
-  title = "BlockGuardian — Modern Portfolio Management",
+  title = "BlockGuardian: Modern Portfolio Management",
   description = "Track, analyze, and grow your investment portfolio with BlockGuardian's real-time analytics and risk monitoring.",
   hideFooter = false,
 }) {

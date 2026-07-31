@@ -2,7 +2,7 @@
  * API Service Layer
  * Handles all HTTP requests to the BlockGuardian Flask backend.
  * Every endpoint here was verified against a live instance of
- * code/backend/src/main.py — see README for the exact contract.
+ * code/backend/src/main.py; see README for the exact contract.
  */
 
 import axios from "axios";

@@ -163,7 +163,7 @@ export default function TradeModal({
             label="Asset"
             options={sellableAssets.map((a) => ({
               value: a.symbol,
-              label: `${a.symbol} — ${a.name} (own ${a.ownedQuantity})`,
+              label: `${a.symbol}: ${a.name} (own ${a.ownedQuantity})`,
             }))}
             value={selected?.symbol || ""}
             onChange={(e) =>
