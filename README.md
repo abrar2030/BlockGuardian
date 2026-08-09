@@ -8,7 +8,7 @@
 BlockGuardian is a full-stack financial platform for managing investment portfolios: tracking assets, recording buy and sell transactions, and reporting performance, allocation, and risk. The backend is a Flask REST API with JWT authentication, encryption, rate limiting, and audit logging built in. It ships with a Next.js web dashboard and a React Native mobile app.
 
 <div align="center">
-  <img src="docs/images/BlockGuardian_dashboard.bmp" alt="BlockGuardian Dashboard" width="80%">
+  <img src="docs/images/homepage.bmp" alt="BlockGuardian HomePage" width="80%">
 </div>
 
 ## Table of Contents
