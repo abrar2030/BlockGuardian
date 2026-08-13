@@ -19,6 +19,7 @@ from src.config import current_config, get_config
 from src.models.base import db_manager
 from src.models.user import db
 from src.routes.auth import auth_bp
+from src.routes.blockchain import blockchain_bp
 from src.routes.portfolio import portfolio_bp
 from src.security.audit import audit_logger
 from src.security.auth import auth_manager
@@ -94,6 +95,7 @@ def create_app(config_name: Any = None) -> Any:
                     "endpoints": {
                         "auth": "/api/auth",
                         "portfolios": "/api/portfolios",
+                        "blockchain": "/api/blockchain",
                         "health": "/health",
                         "docs": "/api/docs",
                     },
@@ -199,6 +201,7 @@ def register_blueprints(app: Any) -> None:
     """Register application blueprints"""
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(portfolio_bp, url_prefix="/api/portfolios")
+    app.register_blueprint(blockchain_bp, url_prefix="/api/blockchain")
     app.logger.info("Blueprints registered successfully")
 
 

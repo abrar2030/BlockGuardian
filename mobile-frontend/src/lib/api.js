@@ -305,4 +305,10 @@ export const assetAPI = {
   },
 };
 
+export const blockchainAPI = {
+  status: async () => doFetch(API_ENDPOINTS.BLOCKCHAIN.STATUS),
+  contracts: async () => doFetch(API_ENDPOINTS.BLOCKCHAIN.CONTRACTS),
+  explorer: async () => doFetch(API_ENDPOINTS.BLOCKCHAIN.EXPLORER),
+};
+
 export { ApiError };

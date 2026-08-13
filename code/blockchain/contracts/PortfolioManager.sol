@@ -2,8 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title PortfolioManager
@@ -11,8 +10,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * Implements portfolio creation, asset allocation, transaction recording, and manager roles.
  */
 contract PortfolioManager is Ownable, ReentrancyGuard {
-    using SafeMath for uint256;
-
     // Portfolio structure
     struct Portfolio {
         address owner; // The address that created the portfolio
@@ -227,10 +224,9 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < portfolioAssets[_portfolioId].length; i++) {
             address existingToken = portfolioAssets[_portfolioId][i];
             if (assetAllocations[_portfolioId][existingToken].isActive) {
-                currentTotalTarget = currentTotalTarget.add(
-                    assetAllocations[_portfolioId][existingToken]
-                        .targetAllocation
-                );
+                currentTotalTarget += assetAllocations[_portfolioId][
+                    existingToken
+                ].targetAllocation;
             }
         }
         require(
@@ -316,10 +312,9 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
                 assetAllocations[_portfolioId][existingToken].isActive &&
                 existingToken != _tokenAddress
             ) {
-                currentTotalTarget = currentTotalTarget.add(
-                    assetAllocations[_portfolioId][existingToken]
-                        .targetAllocation
-                );
+                currentTotalTarget += assetAllocations[_portfolioId][
+                    existingToken
+                ].targetAllocation;
             }
         }
         require(
@@ -357,7 +352,7 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
             );
             assetAllocations[_portfolioId][_tokenAddresses[i]]
                 .currentAllocation = _currentAllocations[i];
-            totalAllocation = totalAllocation.add(_currentAllocations[i]);
+            totalAllocation += _currentAllocations[i];
 
             emit CurrentAllocationUpdated(
                 _portfolioId,
@@ -457,12 +452,9 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Add portfolio manager (Owner Only)
+     * @dev Add portfolio manager (Portfolio Owner Only)
      */
-    function addManager(
-        uint256 _portfolioId,
-        address _manager
-    ) external onlyOwner {
+    function addManager(uint256 _portfolioId, address _manager) external {
         require(
             portfolios[_portfolioId].owner == msg.sender,
             "Not portfolio owner"
@@ -484,12 +476,9 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Remove portfolio manager (Owner Only)
+     * @dev Remove portfolio manager (Portfolio Owner Only)
      */
-    function removeManager(
-        uint256 _portfolioId,
-        address _manager
-    ) external onlyOwner {
+    function removeManager(uint256 _portfolioId, address _manager) external {
         require(
             portfolios[_portfolioId].owner == msg.sender,
             "Not portfolio owner"
@@ -511,7 +500,7 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
         require(found, "Manager not found");
 
         // Remove manager by replacing with last element and popping
-        uint256 lastIndex = managers.length.sub(1);
+        uint256 lastIndex = managers.length - 1;
         if (index != lastIndex) {
             managers[index] = managers[lastIndex];
         }
@@ -521,9 +510,9 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Deactivate portfolio (Owner Only)
+     * @dev Deactivate portfolio (Portfolio Owner Only)
      */
-    function deactivatePortfolio(uint256 _portfolioId) external onlyOwner {
+    function deactivatePortfolio(uint256 _portfolioId) external {
         require(
             portfolios[_portfolioId].owner == msg.sender,
             "Not portfolio owner"
@@ -537,9 +526,9 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Reactivate portfolio (Owner Only)
+     * @dev Reactivate portfolio (Portfolio Owner Only)
      */
-    function reactivatePortfolio(uint256 _portfolioId) external onlyOwner {
+    function reactivatePortfolio(uint256 _portfolioId) external {
         require(
             portfolios[_portfolioId].owner == msg.sender,
             "Not portfolio owner"
@@ -601,18 +590,27 @@ contract PortfolioManager is Ownable, ReentrancyGuard {
             return new Transaction[](0);
         }
 
-        uint256 endIndex = _startIndex.add(_count);
+        uint256 endIndex = _startIndex + _count;
         if (endIndex > totalCount) {
             endIndex = totalCount;
         }
 
-        uint256 resultCount = endIndex.sub(_startIndex);
+        uint256 resultCount = endIndex - _startIndex;
         Transaction[] memory result = new Transaction[](resultCount);
 
         for (uint256 i = 0; i < resultCount; i++) {
-            result[i] = portfolioTransactions[_portfolioId][_startIndex.add(i)];
+            result[i] = portfolioTransactions[_portfolioId][_startIndex + i];
         }
 
         return result;
+    }
+
+    /**
+     * @dev Total number of portfolios ever created (active or not).
+     * Exposed as a convenience read for dashboards/explorers - the
+     * underlying counter is otherwise private.
+     */
+    function totalPortfolios() external view returns (uint256) {
+        return portfolioCounter - 1;
     }
 }

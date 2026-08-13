@@ -2,9 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
  * @title DeFiIntegration
@@ -12,8 +11,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * Implements deposit, withdrawal, yield claiming, and strategy management.
  */
 contract DeFiIntegration is Ownable, ReentrancyGuard {
-    using SafeMath for uint256;
-
     // Strategy structure
     struct Strategy {
         uint256 id;
@@ -283,7 +280,7 @@ contract DeFiIntegration is Ownable, ReentrancyGuard {
         );
 
         // 2. Calculate platform fee
-        uint256 fee = _amount.mul(platformFee).div(10000);
+        uint256 fee = (_amount * platformFee) / 10000;
 
         // 3. Transfer fee to fee collector
         if (fee > 0) {
@@ -291,7 +288,7 @@ contract DeFiIntegration is Ownable, ReentrancyGuard {
         }
 
         // 4. Calculate final investment amount
-        uint256 investmentAmount = _amount.sub(fee);
+        uint256 investmentAmount = _amount - fee;
 
         // 5. Create investment record
         uint256 investmentId = investmentIdCounter++;
@@ -363,7 +360,7 @@ contract DeFiIntegration is Ownable, ReentrancyGuard {
 
         // Check lock period
         require(
-            block.timestamp >= investment.startTime.add(strategy.lockPeriod),
+            block.timestamp >= investment.startTime + strategy.lockPeriod,
             "Investment is still locked"
         );
 
@@ -401,10 +398,12 @@ contract DeFiIntegration is Ownable, ReentrancyGuard {
         require(investment.isActive, "Investment not active");
 
         // Calculate available yield (profit)
-        uint256 availableYield = investment.currentValue.sub(
-            investment.initialValue
+        require(
+            investment.currentValue > investment.initialValue,
+            "No yield available to claim"
         );
-        require(availableYield > 0, "No yield available to claim");
+        uint256 availableYield =
+            investment.currentValue - investment.initialValue;
 
         // Reset the initial value to the current value (reinvesting the principal)
         investment.initialValue = investment.currentValue;
@@ -517,12 +516,12 @@ contract DeFiIntegration is Ownable, ReentrancyGuard {
             return new Strategy[](0);
         }
 
-        uint256 endIndex = _startIndex.add(_count);
+        uint256 endIndex = _startIndex + _count;
         if (endIndex > activeCount) {
             endIndex = activeCount;
         }
 
-        uint256 resultCount = endIndex.sub(_startIndex);
+        uint256 resultCount = endIndex - _startIndex;
         Strategy[] memory result = new Strategy[](resultCount);
 
         uint256 currentIndex = 0;
@@ -585,5 +584,21 @@ contract DeFiIntegration is Ownable, ReentrancyGuard {
         }
 
         return result;
+    }
+
+    /**
+     * @dev Total number of strategies ever created (active or not). Exposed
+     * as a convenience read for dashboards/explorers.
+     */
+    function totalStrategies() external view returns (uint256) {
+        return strategyIdCounter - 1;
+    }
+
+    /**
+     * @dev Total number of investments ever created (active or not).
+     * Exposed as a convenience read for dashboards/explorers.
+     */
+    function totalInvestments() external view returns (uint256) {
+        return investmentIdCounter - 1;
     }
 }

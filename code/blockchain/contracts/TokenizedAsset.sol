@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
  * @title TokenizedAsset
@@ -11,8 +10,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * Implements asset-specific metadata, valuation, and a transfer fee mechanism.
  */
 contract TokenizedAsset is ERC20, Ownable {
-    using SafeMath for uint256;
-
     // Asset details
     string public assetSymbol;
     string public assetName;
@@ -81,7 +78,7 @@ contract TokenizedAsset is ERC20, Ownable {
         feeCollector = _feeCollector;
 
         // Mint initial supply to contract creator
-        _mint(msg.sender, _initialSupply.mul(10 ** decimals()));
+        _mint(msg.sender, _initialSupply * (10 ** decimals()));
     }
 
     // --- Asset Management (Owner Only) ---
@@ -172,21 +169,32 @@ contract TokenizedAsset is ERC20, Ownable {
     // --- Core ERC20 Overrides ---
 
     /**
-     * @dev Override _transfer function to enforce trading rules and collect fees
+     * @dev Override _update (the OZ v5 ERC20 hook) to enforce trading rules and
+     * collect fees on ordinary transfers. Mints (from == address(0)) and burns
+     * (to == address(0)) always bypass trading rules and fees.
+     *
+     * NOTE: In OpenZeppelin Contracts v5, ERC20._transfer is no longer virtual;
+     * _update is the correct extension point for customizing transfer behavior.
      */
-    function _transfer(
-        address sender,
-        address recipient,
+    function _update(
+        address from,
+        address to,
         uint256 amount
     ) internal override {
+        // Mints and burns are never subject to trading rules or fees.
+        if (from == address(0) || to == address(0)) {
+            super._update(from, to, amount);
+            return;
+        }
+
         // Allow transfers by owner/fee collector regardless of trading status
         if (
-            sender == owner() ||
-            recipient == owner() ||
-            sender == feeCollector ||
-            recipient == feeCollector
+            from == owner() ||
+            to == owner() ||
+            from == feeCollector ||
+            to == feeCollector
         ) {
-            super._transfer(sender, recipient, amount);
+            super._update(from, to, amount);
             return;
         }
 
@@ -195,17 +203,17 @@ contract TokenizedAsset is ERC20, Ownable {
 
         // Calculate fee if trading fee is set
         if (tradingFee > 0) {
-            uint256 fee = amount.mul(tradingFee).div(10000);
-            uint256 amountAfterFee = amount.sub(fee);
+            uint256 fee = (amount * tradingFee) / 10000;
+            uint256 amountAfterFee = amount - fee;
 
             // 1. Transfer fee to fee collector
-            super._transfer(sender, feeCollector, fee);
+            super._update(from, feeCollector, fee);
 
             // 2. Transfer remaining amount to recipient
-            super._transfer(sender, recipient, amountAfterFee);
+            super._update(from, to, amountAfterFee);
         } else {
             // No fee, standard transfer
-            super._transfer(sender, recipient, amount);
+            super._update(from, to, amount);
         }
     }
 
@@ -213,7 +221,6 @@ contract TokenizedAsset is ERC20, Ownable {
 
     /**
      * @dev Get asset details
-     * @return Asset details as a tuple
      */
     function getAssetDetails()
         external

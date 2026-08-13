@@ -31,6 +31,9 @@ scipy==1.13.0
 yfinance==0.2.38
 requests==2.32.3
 
+# Blockchain
+web3==7.16.0
+
 # Monitoring and Logging
 prometheus-client==0.20.0
 structlog==24.1.0

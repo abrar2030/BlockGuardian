@@ -3,6 +3,7 @@ import {
   formatNumber,
   formatPercent,
   formatLabel,
+  formatTokenAmount,
   initials,
 } from "../../lib/format";
 
@@ -53,5 +54,35 @@ describe("initials", () => {
 
   it("falls back to U when no name is given", () => {
     expect(initials("", "")).toBe("U");
+  });
+});
+
+describe("formatTokenAmount", () => {
+  it("converts an 18-decimal wei-style integer string to a token amount", () => {
+    // 1,000,000 tokens at 18 decimals
+    expect(formatTokenAmount("1000000000000000000000000")).toBe("1,000,000.00");
+  });
+
+  it("handles amounts smaller than one whole token", () => {
+    // 0.5 tokens at 18 decimals
+    expect(formatTokenAmount("500000000000000000")).toBe("0.50");
+  });
+
+  it("handles zero", () => {
+    expect(formatTokenAmount("0")).toBe("0.00");
+  });
+
+  it("returns a placeholder dash for null/undefined", () => {
+    expect(formatTokenAmount(null)).toBe("-");
+    expect(formatTokenAmount(undefined)).toBe("-");
+  });
+
+  it("returns a placeholder dash for non-numeric strings", () => {
+    expect(formatTokenAmount("not-a-number")).toBe("-");
+  });
+
+  it("supports a custom decimals count", () => {
+    // USDC-style 6 decimals: 1,000,000 = 1.0
+    expect(formatTokenAmount("1000000", 6)).toBe("1.00");
   });
 });

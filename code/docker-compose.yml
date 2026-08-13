@@ -66,10 +66,17 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - PORT=5000
+      # Blockchain integration (see hardhat-node/blockchain-deploy below).
+      # Harmless if the `blockchain` profile isn't running - BlockchainService
+      # just reports "connected": false instead of failing to boot.
+      - BLOCKCHAIN_RPC_URL=http://hardhat-node:8545
+      - BLOCKCHAIN_NETWORK=docker
+      - BLOCKCHAIN_DEPLOYMENTS_DIR=/app/blockchain-deployments
     volumes:
       - backend_uploads:/app/uploads
       - backend_logs:/app/logs
       - backend_backups:/app/backups
+      - blockchain_deployments:/app/blockchain-deployments:ro
     ports:
       - "5000:5000"
     networks:
@@ -103,10 +110,17 @@ services:
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-jwt-key}
       - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      # Blockchain integration (see hardhat-node/blockchain-deploy below).
+      # Harmless if the `blockchain` profile isn't running - BlockchainService
+      # just reports "connected": false instead of failing to boot.
+      - BLOCKCHAIN_RPC_URL=http://hardhat-node:8545
+      - BLOCKCHAIN_NETWORK=docker
+      - BLOCKCHAIN_DEPLOYMENTS_DIR=/app/blockchain-deployments
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
       - backend_logs:/app/logs
+      - blockchain_deployments:/app/blockchain-deployments:ro
     ports:
       - "5000:5000"
     networks:
@@ -244,25 +258,67 @@ services:
       - prometheus
     restart: unless-stopped
 
-  # Ganache (blockchain dev node) - only with --profile blockchain
-  ganache:
-    image: trufflesuite/ganache:latest
-    container_name: blockguardian_ganache
+  # Local blockchain dev node (Hardhat) - only with --profile blockchain
+  #
+  # Replaces the previous `ganache` service, which was never actually
+  # connected to anything: nothing deployed contracts to it, and the
+  # backend had no code that talked to it. This uses Hardhat's own node
+  # instead of Ganache because it's the same toolchain the contracts are
+  # built, compiled, and tested with (see code/blockchain) - Ganache's
+  # older EVM implementation isn't guaranteed to support everything the
+  # OpenZeppelin v5 contracts rely on (custom errors, etc.), and was never
+  # actually verified against them.
+  hardhat-node:
+    build:
+      context: ./blockchain
+      dockerfile: Dockerfile
+    container_name: blockguardian_hardhat_node
     profiles:
       - blockchain
     ports:
       - "8545:8545"
     networks:
       - blockguardian_network
-    command: >
-      --deterministic
-      --accounts 10
-      --host 0.0.0.0
-      --port 8545
-      --networkId 1337
-      --gasLimit 10000000
-      --gasPrice 20000000000
     restart: unless-stopped
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - >-
+          curl -sf -X POST -H 'Content-Type: application/json'
+          --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+          http://localhost:8545 > /dev/null || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # One-shot job: deploys the BlockGuardian contracts to hardhat-node once
+  # it's healthy, then exits. Exports each contract's address + ABI to the
+  # blockchain_deployments volume, which the backend mounts read-only so it
+  # knows where the contracts live without needing Hardhat installed itself.
+  # Re-run with `docker compose --profile blockchain up blockchain-deploy`
+  # any time you want to redeploy (e.g. after restarting hardhat-node, which
+  # resets its in-memory chain state).
+  blockchain-deploy:
+    build:
+      context: ./blockchain
+      dockerfile: Dockerfile
+    container_name: blockguardian_blockchain_deploy
+    profiles:
+      - blockchain
+    command:
+      ["npx", "hardhat", "run", "scripts/deploy.js", "--network", "docker"]
+    environment:
+      - BLOCKCHAIN_RPC_URL=http://hardhat-node:8545
+      - DEPLOYMENTS_DIR=/app/deployments
+    volumes:
+      - blockchain_deployments:/app/deployments
+    networks:
+      - blockguardian_network
+    depends_on:
+      hardhat-node:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   postgres_data:
@@ -280,6 +336,8 @@ volumes:
   backend_backups:
     driver: local
   nginx_logs:
+    driver: local
+  blockchain_deployments:
     driver: local
 
 networks:

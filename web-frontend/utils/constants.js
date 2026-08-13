@@ -40,6 +40,11 @@ export const API_ENDPOINTS = {
     LIST: `${API_BASE_PATH}/portfolios/assets`,
     SEARCH: `${API_BASE_PATH}/portfolios/assets/search`,
   },
+  BLOCKCHAIN: {
+    STATUS: `${API_BASE_PATH}/blockchain/status`,
+    CONTRACTS: `${API_BASE_PATH}/blockchain/contracts`,
+    EXPLORER: `${API_BASE_PATH}/blockchain/explorer`,
+  },
   HEALTH: "/health",
   INFO: `${API_BASE_PATH}/info`,
 };
@@ -53,6 +58,7 @@ export const ROUTES = {
   PORTFOLIOS: "/portfolios",
   PORTFOLIO_DETAIL: (id) => `/portfolios/${id}`,
   MARKETS: "/markets",
+  BLOCKCHAIN: "/blockchain",
   ACCOUNT: "/account",
   ABOUT: "/about",
   CONTACT: "/contact",

@@ -3,8 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title TradingPlatform
@@ -12,7 +11,11 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
  * Implements a simple order book (limit orders only) and trade execution.
  */
 contract TradingPlatform is Ownable, ReentrancyGuard {
-    using SafeMath for uint256;
+    // Maximum number of candidate orders scanned per createOrder() call when
+    // attempting to match a newly-placed order. Bounds worst-case gas usage
+    // as the order book grows; an order that isn't fully matched within this
+    // scan simply remains open and can still be matched by future orders.
+    uint256 public constant MAX_MATCH_SCAN = 100;
 
     // Order structure
     struct Order {
@@ -206,11 +209,20 @@ contract TradingPlatform is Ownable, ReentrancyGuard {
             return;
         }
 
-        // Iterate through all existing orders to find a match
-        for (uint256 i = 1; i < orderIdCounter; i++) {
+        // Iterate through existing orders to find a match, bounded by
+        // MAX_MATCH_SCAN so a large order book can't push this call's gas
+        // cost past the block gas limit. Any remainder that isn't matched
+        // within the scan simply stays open on the book.
+        uint256 scanned = 0;
+        for (
+            uint256 i = 1;
+            i < orderIdCounter && scanned < MAX_MATCH_SCAN;
+            i++
+        ) {
             if (i == _orderId) {
                 continue;
             }
+            scanned++;
 
             Order storage matchingOrder = orders[i];
 
@@ -286,10 +298,6 @@ contract TradingPlatform is Ownable, ReentrancyGuard {
                 ? buyOrder.amount
                 : sellOrder.amount;
 
-        // Calculate total value and fee
-        uint256 totalValue = tradeAmount.mul(_tradePrice);
-        uint256 fee = totalValue.mul(tradingFee).div(10000);
-
         // --- Token Transfer Logic ---
 
         // 1. Transfer tokens from seller to buyer
@@ -300,9 +308,13 @@ contract TradingPlatform is Ownable, ReentrancyGuard {
         );
 
         // 2. Transfer collateral (e.g., stablecoin) from buyer to seller
-        // This part is simplified. In a real DEX, this would involve a second token (e.g., USDC).
-        // For this implementation, we assume the collateral is handled off-chain or by a separate contract.
-        // We will simulate the fee collection here.
+        // KNOWN LIMITATION (not fixed here - needs a product/design decision,
+        // see AUDIT_FIXES.md): the asset token moves from seller to buyer
+        // above, but no payment/quote token ever moves from buyer to seller.
+        // As written, sellers give up their tokens for free. Do not use this
+        // contract to settle real trades until a quote-token escrow (e.g.
+        // seller-side buy-order collateral locked in a stablecoin) is added
+        // and audited.
 
         // 3. Collect fee (paid by the seller for simplicity)
         // In a real system, fees are usually deducted from the collateral or the asset.
@@ -314,8 +326,8 @@ contract TradingPlatform is Ownable, ReentrancyGuard {
         // --- Update Orders and Record Trade ---
 
         // Update order amounts
-        buyOrder.amount = buyOrder.amount.sub(tradeAmount);
-        sellOrder.amount = sellOrder.amount.sub(tradeAmount);
+        buyOrder.amount = buyOrder.amount - tradeAmount;
+        sellOrder.amount = sellOrder.amount - tradeAmount;
 
         // Deactivate filled orders
         if (buyOrder.amount == 0) {
@@ -472,12 +484,12 @@ contract TradingPlatform is Ownable, ReentrancyGuard {
             return new Order[](0);
         }
 
-        uint256 endIndex = _startIndex.add(_count);
+        uint256 endIndex = _startIndex + _count;
         if (endIndex > activeCount) {
             endIndex = activeCount;
         }
 
-        uint256 resultCount = endIndex.sub(_startIndex);
+        uint256 resultCount = endIndex - _startIndex;
         Order[] memory result = new Order[](resultCount);
 
         uint256 currentIndex = 0;
@@ -503,5 +515,21 @@ contract TradingPlatform is Ownable, ReentrancyGuard {
         }
 
         return result;
+    }
+
+    /**
+     * @dev Total number of orders ever created (active or not). Exposed as a
+     * convenience read for dashboards/explorers.
+     */
+    function totalOrders() external view returns (uint256) {
+        return orderIdCounter - 1;
+    }
+
+    /**
+     * @dev Total number of trades ever executed. Exposed as a convenience
+     * read for dashboards/explorers.
+     */
+    function totalTrades() external view returns (uint256) {
+        return tradeIdCounter - 1;
     }
 }

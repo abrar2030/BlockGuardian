@@ -303,6 +303,25 @@ export const assetAPI = {
   },
 };
 
+// ---- Blockchain ------------------------------------------------------------
+
+export const blockchainAPI = {
+  status: async () => {
+    const { data } = await apiClient.get(API_ENDPOINTS.BLOCKCHAIN.STATUS);
+    return data;
+  },
+
+  contracts: async () => {
+    const { data } = await apiClient.get(API_ENDPOINTS.BLOCKCHAIN.CONTRACTS);
+    return data;
+  },
+
+  explorer: async () => {
+    const { data } = await apiClient.get(API_ENDPOINTS.BLOCKCHAIN.EXPLORER);
+    return data;
+  },
+};
+
 // ---- Health --------------------------------------------------------------
 
 export const healthAPI = {

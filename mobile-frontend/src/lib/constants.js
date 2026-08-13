@@ -37,6 +37,11 @@ export const API_ENDPOINTS = {
     LIST: "/portfolios/assets",
     SEARCH: "/portfolios/assets/search",
   },
+  BLOCKCHAIN: {
+    STATUS: "/blockchain/status",
+    CONTRACTS: "/blockchain/contracts",
+    EXPLORER: "/blockchain/explorer",
+  },
   HEALTH: "/health",
 };
 

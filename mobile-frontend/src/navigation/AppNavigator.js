@@ -10,6 +10,7 @@ import DashboardScreen from "../screens/DashboardScreen";
 import PortfoliosScreen from "../screens/PortfoliosScreen";
 import PortfolioDetailScreen from "../screens/PortfolioDetailScreen";
 import MarketsScreen from "../screens/MarketsScreen";
+import BlockchainScreen from "../screens/BlockchainScreen";
 import AccountScreen from "../screens/AccountScreen";
 
 const Stack = createNativeStackNavigator();
@@ -19,6 +20,7 @@ const TAB_ICONS = {
   Dashboard: "grid-outline",
   Portfolios: "briefcase-outline",
   Markets: "bar-chart-outline",
+  Blockchain: "cube-outline",
   Account: "person-outline",
 };
 
@@ -61,6 +63,7 @@ function MainTabs() {
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Portfolios" component={PortfoliosScreen} />
       <Tab.Screen name="Markets" component={MarketsScreen} />
+      <Tab.Screen name="Blockchain" component={BlockchainScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );

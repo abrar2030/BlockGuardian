@@ -60,6 +60,28 @@ export function formatLabel(value) {
     .join(" ");
 }
 
+export function formatTokenAmount(value, decimals = 18, displayDecimals = 2) {
+  // Contract balances/supplies come back from the backend as decimal-string
+  // integers (e.g. "1000000000000000000000000") to avoid precision loss on
+  // values that exceed JS's safe integer range - this converts one back to
+  // a human-readable token amount (e.g. "1,000,000.00"). Token amounts are
+  // uint256 on-chain, so there's no negative case to handle.
+  if (value === null || value === undefined) return "-";
+  const str = String(value);
+  if (!/^\d+$/.test(str)) return "-";
+
+  const padded = str.padStart(decimals + 1, "0");
+  const whole = padded.slice(0, padded.length - decimals) || "0";
+  const fraction = padded.slice(padded.length - decimals);
+
+  const combined = Number(whole) + Number(`0.${fraction || "0"}`);
+  if (!Number.isFinite(combined)) return "-";
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: displayDecimals,
+    maximumFractionDigits: displayDecimals,
+  }).format(combined);
+}
+
 export function initials(firstName = "", lastName = "") {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U";
 }

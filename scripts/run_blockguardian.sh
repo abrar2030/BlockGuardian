@@ -68,6 +68,13 @@ if [ -d "$BACKEND_DIR" ]; then
     # shellcheck disable=SC1091
     source venv/bin/activate
     pip install -r requirements.txt > /dev/null
+    # Points the backend's BlockchainService at the node started below.
+    # Harmless if contracts aren't deployed yet when the backend boots -
+    # BlockchainService retries the (cheap, local) deployment-file read on
+    # each request rather than caching "not found" forever.
+    export BLOCKCHAIN_RPC_URL="http://localhost:8545"
+    export BLOCKCHAIN_NETWORK="localhost"
+    export BLOCKCHAIN_DEPLOYMENTS_DIR="$ROOT_DIR/code/blockchain/deployments"
     exec python src/main.py
   ) &
   BACKEND_PID=$!
@@ -95,6 +102,18 @@ fi
 echo -e "${BLUE}Waiting for services to initialize (8 seconds)...${NC}"
 sleep 8
 
+# --- Deploy contracts to the local blockchain node ---
+# Runs synchronously (not backgrounded) so it finishes before the frontend
+# starts. If this fails (e.g. the node needed a little longer to come up),
+# it's not fatal - BlockchainService retries loading deployment artifacts
+# on each request, so redeploying later (`cd code/blockchain && npm run
+# deploy:local`) is all that's needed to pick it up.
+if [ -d "$BLOCKCHAIN_DIR" ]; then
+  echo -e "${BLUE}Deploying smart contracts to the local blockchain node...${NC}"
+  (cd "$BLOCKCHAIN_DIR" && npm run deploy:local) || \
+    echo -e "${RED}Warning: contract deployment failed. The blockchain node is still running; retry with 'cd code/blockchain && npm run deploy:local'.${NC}"
+fi
+
 # --- Start Web Frontend ---
 echo -e "${BLUE}Starting web frontend...${NC}"
 FRONTEND_DIR="$ROOT_DIR/web-frontend"
@@ -115,6 +134,7 @@ echo -e "${GREEN}BlockGuardian application is attempting to run!${NC}"
 echo -e "${GREEN}Web frontend: http://localhost:3000${NC}"
 echo -e "${GREEN}Backend API:  http://localhost:5000${NC}"
 echo -e "${GREEN}Blockchain node (JSON-RPC): http://localhost:8545${NC}"
+echo -e "${GREEN}Blockchain explorer API:    http://localhost:5000/api/blockchain/explorer${NC}"
 echo -e "${BLUE}Press Ctrl+C to stop all services${NC}"
 
 # Keep the script running until interrupted. Because each service above was

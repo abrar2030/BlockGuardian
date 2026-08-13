@@ -1,0 +1,9 @@
+node_modules/
+artifacts/
+cache/
+coverage/
+coverage.json
+deployments/
+.env
+.env.*
+!.env.example

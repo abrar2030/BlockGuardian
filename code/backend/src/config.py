@@ -72,6 +72,12 @@ class BlockchainConfig:
     gas_limit: int = 500000
     gas_price_gwei: int = 20
     confirmation_blocks: int = 12
+    # RPC endpoint + deployment-artifact location for BlockGuardian's own
+    # deployed contracts (see code/blockchain), as opposed to the public
+    # chain RPC endpoints above. Consumed by src.blockchain.BlockchainService.
+    contracts_rpc_url: str = ""
+    contracts_network: str = "docker"
+    contracts_deployments_dir: str = ""
 
 
 @dataclass
@@ -240,6 +246,9 @@ class Config:
             gas_limit=int(os.environ.get("GAS_LIMIT", "500000")),
             gas_price_gwei=int(os.environ.get("GAS_PRICE_GWEI", "20")),
             confirmation_blocks=int(os.environ.get("CONFIRMATION_BLOCKS", "12")),
+            contracts_rpc_url=os.environ.get("BLOCKCHAIN_RPC_URL", ""),
+            contracts_network=os.environ.get("BLOCKCHAIN_NETWORK", "docker"),
+            contracts_deployments_dir=os.environ.get("BLOCKCHAIN_DEPLOYMENTS_DIR", ""),
         )
 
     @property
