@@ -43,16 +43,16 @@ BlockGuardian/
 │   │   ├── src/compliance/     # compliance.py, reporting.py (implemented, not registered)
 │   │   ├── src/monitoring/     # metrics.py (implemented, not registered)
 │   │   ├── src/models/         # SQLAlchemy models, including an AI/ML metadata schema
-│   │   └── tests/               # Backend test suite
-│   └── blockchain/              # Hardhat project
+│   │   └── tests/              # Backend test suite
+│   └── blockchain/             # Hardhat project
 │       ├── contracts/          # PortfolioManager, TradingPlatform, TokenizedAsset,
 │       │                       # DeFiIntegration, TestToken
-│       └── test/                # Hardhat test suite
-├── web-frontend/                 # Next.js web dashboard
-├── mobile-frontend/                # React Native (Expo) app
-├── infrastructure/                  # Docker, Kubernetes, Terraform, Ansible, disaster recovery
-├── scripts/                          # Setup, build, lint, health-check, and deployment scripts
-├── docs/                              # Documentation (this directory)
+│       └── test/               # Hardhat test suite
+├── web-frontend/               # Next.js web dashboard
+├── mobile-frontend/            # React Native (Expo) app
+├── infrastructure/             # Docker, Kubernetes, Terraform, Ansible, disaster recovery
+├── scripts/                    # Setup, build, lint, health-check, and deployment scripts
+├── docs/                       # Documentation (this directory)
 └── README.md
 ```
 
@@ -96,8 +96,6 @@ Registering the existing user, compliance, and monitoring blueprints in `registe
 | Monitoring (infra) | Prometheus, Grafana                                                                |
 | CI/CD              | GitHub Actions                                                                     |
 | Testing            | pytest (backend), Hardhat (contracts), Jest (web and mobile), Playwright (web e2e) |
-
-Flask-Limiter, Flask-Caching, Flask-Migrate, Flask-SocketIO, Flask-Mail, and the Sentry SDK are all listed in `requirements.txt` but aren't imported anywhere in the backend; rate limiting, for example, is a custom in-house implementation rather than the Flask-Limiter package. Celery is also a declared dependency, and Docker Compose defines `celery_worker` and `celery_beat` containers that run `celery -A src.main:celery_app worker`, but no `celery_app` object exists anywhere in `code/backend/src`, so those two containers won't start as currently wired.
 
 ## Architecture
 
@@ -171,8 +169,6 @@ npm run dev                        # http://localhost:3000
 npm start
 ```
 
-The web and mobile frontends aren't part of `code/docker-compose.yml` and are run separately as shown above.
-
 See [docs/USAGE.md](docs/USAGE.md) and [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ## API Surface
@@ -203,8 +199,6 @@ npm test
 npm test
 ```
 
-The backend suite has four large test files: `test_auth.py` (560 lines), `test_compliance.py` (767 lines), `test_portfolio.py` (592 lines), and `test_security.py` (685 lines). `test_compliance.py` and `test_security.py` exercise the compliance and security module logic directly, independent of whether those routes are registered in the running API. The web dashboard has 4 test files (Jest) plus a Playwright end-to-end suite (`web-frontend/e2e/basic.spec.js`); the mobile app has 7 test files (Jest).
-
 ## CI/CD Pipeline
 
 GitHub Actions (`.github/workflows/cicd.yml`) runs four jobs on push, pull request, and manual dispatch:
@@ -215,8 +209,6 @@ GitHub Actions (`.github/workflows/cicd.yml`) runs four jobs on push, pull reque
 | Backend Tests        | Code Quality Checks | Runs the pytest suite with coverage and uploads the coverage report as an artifact |
 | Frontend Build       | Code Quality Checks | Builds the web frontend and uploads the build artifact (no test step)              |
 | Smart Contract Tests | Code Quality Checks | Compiles the contracts with Hardhat and runs the contract test suite with coverage |
-
-There is currently no CI job for the mobile app.
 
 ## Documentation
 
